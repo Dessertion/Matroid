@@ -52,6 +52,23 @@ lemma minimalFor_is_lower_bound
   · assumption
   · tauto
 
+lemma maximal_is_upper_bound [LinearOrder α] {P : α → Prop} {x : α} (h : Maximal P x) :
+    ∀ y, P y → y ≤ x := by
+  intro y hy
+  simp [Maximal] at h
+  obtain (_|_) := le_total y x
+  · assumption
+  · tauto
+
+lemma maximalFor_is_upper_bound
+    {ι} [LinearOrder α] {P : ι → Prop} (f : ι → α) {i : ι} (h : MaximalFor P f i) :
+    ∀ j, P j → f j ≤ f i := by
+  intro j hj
+  simp [MaximalFor] at h
+  obtain (_|_) := le_total (f j) (f i)
+  · assumption
+  · tauto
+
 end NonGraphThings
 
 namespace Graph
@@ -501,6 +518,9 @@ lemma pathSet_nonempty (G : Graph α β) (hNeBot : G.NeBot) :
 def IsLongestPath (G : Graph α β) (p : WList (α) β) :=
   MaximalFor (· ∈ G.pathSet) (fun w => w.length) p
 
+@[simp]
+lemma IsLongestPath.isPath {p} (h : G.IsLongestPath p) : G.IsPath p := h.1
+
 lemma exists_longest_path
     (G : Graph α β) [G.Simple] (hFinite : G.Finite) (hNeBot : G.NeBot) :
     ∃ p, G.IsLongestPath p :=
@@ -508,21 +528,61 @@ lemma exists_longest_path
 
 -- by maximality, each neighbour of is on the path
 lemma first_neighbors_mem_path
-    (G : Graph α β) [G.Simple] (hFinite : G.Finite) (hNeBot : G.NeBot)
+    (G : Graph α β)
     {P : WList (α) β} (hP : G.IsLongestPath P)
     (x : α) (hx : G.Adj x P.first) :
     x ∈ P := by
-  sorry
+  -- suppose not.
+  -- then, we will try constructing a longer path by prepending this neighbour
+  by_contra! hyp
+  obtain ⟨e, he⟩ := hx
+  generalize Q_def : cons x e P = Q
+  symm at Q_def
+  have hQ : G.IsPath Q := by simp_all
+  have hQ_len : Q.length = P.length + 1 := by simp_all
+  have hQ_path : Q ∈ G.pathSet := hQ
+  have maximality := maximalFor_is_upper_bound _ hP _ hQ_path
+  linarith
 
 -- similarly, the same statement but reverse in direction
 lemma last_neighbors_mem_path
-    (G : Graph α β) [G.Simple] (hFinite : G.Finite) (hNeBot : G.NeBot)
+    (G : Graph α β)
     {P : WList (α) β} (hP : G.IsLongestPath P)
     (x : α) (hx : G.Adj x P.last) :
     x ∈ P := by
   sorry
 
-lemma exists_left_edge
-    (w : WList α β) {x : α} (hxw : x ∈ w) (hx : x ≠ w.first) :
-    ∃ e y, w.DInc e y x := by
-  sorry
+-- cycles in simple graphs are nontrivial
+lemma IsCycle.nontrivial_of_simple
+    [G.Simple]
+    {P} (hP : G.IsCycle P) : P.Nontrivial := by
+  obtain (h|h) := hP.loop_or_nontrivial
+  swap; assumption
+  exfalso
+  obtain ⟨x,e,rfl⟩ := h
+  replace hP := hP.isTrail
+  rw [cons_isTrail_iff] at hP
+  apply hP.2.1.ne; simp
+
+-- cycles in simple graphs are of length at least 3
+lemma IsCycle.cycle_length_ge_3_of_simple
+    [G.Simple]
+    {P} (hP : G.IsCycle P) :
+    3 ≤ P.length := by
+  by_contra! hyp_contra
+  replace hyp_contra : P.length = 2 := by
+    suffices 2 ≤ P.length by linarith
+    have P_nontrivial := hP.nontrivial_of_simple
+    linarith [P_nontrivial.one_lt_length]
+  rw [hP.length_eq_two_iff] at hyp_contra
+  obtain ⟨x,y,e,f,_, hne, rfl⟩ := hyp_contra
+  have h_e_link : G.IsLink e x y := by
+    replace hP := hP.isTrail
+    simp_all
+  have h_f_link : G.IsLink f y x := by
+    replace hP := hP.isTrail
+    simp_all
+  symm at h_f_link
+  apply hne
+  have := IsLink.unique_edge h_e_link h_f_link
+  assumption
