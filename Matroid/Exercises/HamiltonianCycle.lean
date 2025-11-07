@@ -9,6 +9,8 @@ import Matroid.Graph.Subgraph.Basic
 import Matroid.Graph.Connected.Defs
 import Matroid.Graph.Connected.Component
 
+import Matroid.Graph.WList.Defs
+
 import Qq open Qq Lean Meta Elab Tactic
 -- simple is still broken
 -- import Matroid.Graph.Simple
@@ -293,6 +295,7 @@ def ConnectivityGE (G : Graph α β) (k : ℕ∞) : Prop :=
   ∀ S, S.encard < k → (G - S).Connected
 
 --Avoids complete graph case but is not technically correct
+-- or maybe it is?
 def IsSepSet (G : Graph α β) (S : Set (α)) : Prop :=
   (S ⊆ V(G)) ∧ (¬ (G - S).Connected) ∧ (S ≠ V(G))
 
@@ -333,31 +336,33 @@ lemma Bound_on_indepSet {G : Graph α β} [G.Simple]
   linarith
 
 --Again, is missing when G is complete but whatever
-lemma indep_to_Dirac {G : Graph α β} [G.Simple] (h3 : 3 ≤ V(G).ncard)
+lemma indep_to_Dirac {G : Graph α β} [G.Simple] [G.Finite] (h3 : 3 ≤ V(G).ncard)
     (S : Set (α)) (HS : IsMinSepSet G S )
     (A : Set (α)) (hA : IsMaxIndependent G A)
     (hDirac : V(G).ncard ≤ 2 * G.minDegree ) : A.ncard ≤ S.ncard := by
-  --Important case
+  --Trivial case: Independent set is completely contained in the separator
   obtain ( HAS| he ) := Decidable.em (A ⊆ S)
-  · have : S.Finite := by sorry
+  · have : S.Finite := Set.Finite.subset vertexSet_finite HS.1.1
     exact ncard_le_ncard HAS this
   have ⟨x, hxA, hvS ⟩ : ∃ x ∈ A, x ∉ S := by exact not_subset.mp he
   -- Add hDirac applyed to x. You won't need it immediatly but will need it in all cases
 
   --We want to use ge_two_components_of_not_connected with G-S so we need:
-  have hxS: x ∈ V(G - S) := by sorry
+  have hxS: x ∈ V(G - S) := by
+    simp
+    have := hA.1.1
+    tauto
 
   have hNeBotS : (G - S).NeBot := by
     apply NeBot_iff_vertexSet_nonempty.2
-    sorry
+    tauto
 
-  have hcomp := ge_two_components_of_not_connected hNeBotS sorry
+  have hcomp := ge_two_components_of_not_connected hNeBotS HS.1.2.1
   have ⟨ H1, hccH1, hcH1 ⟩ : ∃ H, IsCompOf H (G-S) ∧ x ∈ V(H) := by
-    -- use (VertexConnected.refl x)
-    sorry
+    exact exists_IsCompOf_vertex_mem hxS
 
   --Here are two options to finish the proof, either define H2 as follows, but it won't be conencted
-  let H2 := G - (V(H1) ∪ S)
+  --let H2 := G - (V(H1) ∪ S)
   --In this case use hcomp to get V(H2)≠ ∅
 
   --Second option is to use and prove this
@@ -366,11 +371,31 @@ lemma indep_to_Dirac {G : Graph α β} [G.Simple] (h3 : 3 ≤ V(G).ncard)
   --see Richards proof using hcomp
   --In this case you will need (V(H2)).ncard ≤ (V(G)\ (V(H1) ∪ S) ).ncard + S.ncard (or something)
 
+  have ⟨H2, ⟨H2comp, H2ne⟩⟩ :
+    ∃ H, H.IsCompOf (G - S) ∧ H ≠ H1 := by
+    have components_nonempty : (G - S).Components.Nonempty := by
+      apply nonempty_of_encard_ne_zero
+      intro h; rw [h] at hcomp; clear h
+      norm_num at hcomp
+    by_contra! hyp_contra
+    have is_singleton : (G - S).Components = {H1} := by
+      exact (Nonempty.subset_singleton_iff (components_nonempty)).mp hyp_contra
+    have : (G - S).Components.encard = 1 := by
+      simp [is_singleton]
+    rw [this] at hcomp; clear this
+    have : (2 : ℕ) ≤ (1 : ℕ) := by exact ENat.coe_le_coe.mp hcomp
+    linarith
+
   -- Second annoying case
   obtain ( Hemp| hAH1 ) := Decidable.em ( A ∩ V(H2) = ∅)
-  · have ⟨y, hy ⟩ : ∃ y, y ∈ V(H2) \ A := by sorry
+  · have ⟨y, hy ⟩ : ∃ y, y ∈ V(H2) \ A := by
+      -- Managed to simplify this part a lot - Noah
+      rw [← Set.diff_self_inter, Set.inter_comm, Hemp, Set.diff_empty]
+      exact H2comp.1.2
     --Apply Bound_on_indepSet with modifications since H2 is not a connected component
     -- You will nee hDirac applied to y
+    have := Bound_on_indepSet S HS.1 H1 hccH1 A hA x (by tauto)
+
     sorry
 
   --Easy case
@@ -380,6 +405,75 @@ lemma indep_to_Dirac {G : Graph α β} [G.Simple] (h3 : 3 ≤ V(G).ncard)
   have h1 : (V(H1)).ncard + S.ncard + (V(H2)).ncard + S.ncard = V(G).ncard + S.ncard := by sorry
   -- Add hDirac applied to y
   sorry
+
+def Is_hamiltonian_cycle (G : Graph α β) (C : WList α β) : Prop :=
+  G.IsCycle C ∧ C.length = V(G).ncard
+
+def neighbour_of_Set (G : Graph α β) (H : Set α) (v : α ) : Prop :=
+    ∃ w, w ∈ H ∧  Adj G v w
+
+--I think this lemma is important and useful for us
+
+lemma IsCycle_length_bound {G : Graph α β} {C : WList α β} (hC : G.IsCycle C ) :
+    C.length ≤ V(G).ncard := by
+
+  have hsubs := hC.isWalk.vertexSet_subset
+  have : C.length = V(C).ncard := by
+    sorry
+  sorry
+
+
+lemma Hamiltonian_alpha_kappa {G : Graph α β} [G.Simple] (h3 : 3 ≤ V(G).ncard)
+    (S : Set (α)) (HS : IsMinSepSet G S )
+    (A : Set (α)) (hA : IsMaxIndependent G A)
+    (hAS : A.ncard ≤ S.ncard ) : ∃ C : WList α β, Is_hamiltonian_cycle G C := by
+--grw
+
+  --The following are needed to find a max cycle
+  have ⟨ C', hC'⟩ : ∃ C, G.IsCycle C := by sorry
+  let S := {C : WList α β | G.IsCycle C }
+  have hsne : S.Nonempty := sorry
+  have hsfin : ((length ) '' S).Finite := sorry
+  obtain ⟨C, hCs⟩ := hsfin.exists_maximalFor' _ _ hsne
+  --Now that we got a max cycle, we have two cases
+  obtain ( hn| hlen ) := Decidable.em (C.length = V(G).ncard  )
+  · use C
+    refine ⟨ hCs.prop , hn ⟩
+  --There should be an obvious bound on the size of a cycle
+  have hCle : C.length < V(G).ncard := by sorry
+  let VC := {v ∈ V(G) | v ∈ C.vertex}
+  --have ⟨v, hvV ⟩ : ∃ v, v ∉ C.vertex := sorry
+  have hG : V(G-(VC)).Nonempty := by sorry
+  have ⟨D, hD ⟩ := exists_IsCompOf hG
+  let Neig := {v : α | v ∈ C.vertex ∧ (neighbour_of_Set G V(D) v) }
+  --This is the second worst sorry
+  have hDadj : ∀ v, v ∈ Neig → ∀ u, u ∈ Neig
+      → C.idxOf v ≠ C.idxOf u + 1 := by
+    intro v hvN u huN
+    by_contra hcon
+    obtain ⟨ w, hwD, hwad ⟩ := hvN.2
+    obtain ⟨ w', huD, huad ⟩ := huN.2
+    --Need to take path in D from w to w' and extend cycle
+    sorry
+  let NextNeigh := {v ∈ V(G) | ∃ w ∈ Neig, C.idxOf v = C.idxOf w + 1 }
+  have ⟨ v, hvD ⟩ : ∃ v, v ∈ V(D) := by sorry
+  --I'm not sure how much you need this one
+  --Worst sorry
+  have hNNI : IsIndependent G NextNeigh := by sorry
+  have hNNIv : IsIndependent G ( insert v NextNeigh) := by sorry
+  --Finish
+
+
+
+
+
+
+
+
+
+
+  sorry
+
 
 lemma finite_components_of_finite {G : Graph α β} (hFinite : G.Finite) :
   G.Components.Finite := by
