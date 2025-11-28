@@ -8,7 +8,7 @@ import Matroid.Exercises.HamiltonianCycle.Connected
 import Matroid.Exercises.HamiltonianCycle.Bipartite
 
 -- TODO: remember to remove this Loogle import at the end of the project
-import Loogle.Find
+-- import Loogle.Find
 
 open Qq Lean Meta Elab Tactic WList Set
 
