@@ -11,11 +11,6 @@ linter.style.longLine = true
 linter.unusedSimpArgs = true
 
 [[require]]
-name = "loogle"
-git = "https://github.com/nomeata/loogle"
-rev = "master"
-
-[[require]]
 name = "mathlib"
 scope = "leanprover-community"
 rev = "master"
