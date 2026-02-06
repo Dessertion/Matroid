@@ -7,48 +7,195 @@ open Set symmDiff WList
 
 namespace Graph
 
-lemma IsCover.mem_or_mem_or_isLink (h : G.IsCover S) (he : G.IsLink e u v) : u ∈ S ∨ v ∈ S := by
-  sorry
+def coverNumberSet (G : Graph α β) : Set ℕ∞ :=
+  {n | ∃ S, G.IsCover S ∧ n = S.encard}
+
+@[simp]
+lemma coverNumberSet_eq : G.coverNumberSet = {n | ∃ S, G.IsCover S ∧ n = S.encard} := rfl
+
+abbrev matchingNumberSet (G : Graph α β) : Set ℕ∞ :=
+  {n | ∃ M, G.IsMatching M ∧ n = M.encard}
+
+@[simp]
+lemma matchingNumberSet_eq : G.matchingNumberSet = {n | ∃ M, G.IsMatching M ∧ n = M.encard} := rfl
+
+lemma IsCover.mem_or_mem_of_isLink (h : G.IsCover S) (he : G.IsLink e u v) : u ∈ S ∨ v ∈ S := by
+  have cover := h.cover
+  have e_mem : e ∈ E(G, S) := h.cover he.edge_mem
+  rw [mem_setIncEdges_iff] at e_mem
+  obtain ⟨x, hxS, hx⟩ := e_mem
+  have := hx.eq_or_eq_of_isLink he
+  grind
 
 lemma IsCover.le_encard (h : G.IsCover S) : τ(G) ≤ S.encard := by
-  sorry
+  unfold coverNumber
+  grind [sInf_le]
 
 lemma IsMinCover.encard (h : G.IsMinCover S) : S.encard = τ(G) := by
-  sorry
+  unfold coverNumber
+  refine le_antisymm ?_ h.le_encard
+  have := h.min
+  grind [le_sInf]
+
+-- TODO: rename; unless we decide to drop the subset condition, then this becomes obsolete
+lemma IsCover.encard_le_vertexSet_encard (h : G.IsCover S) : S.encard ≤ V(G).encard := by
+  exact encard_le_encard h.subset
 
 lemma isMinCover_iff_minimalFor : G.IsMinCover S ↔ MinimalFor G.IsCover Set.encard S :=
   ⟨fun h => ⟨h.toIsCover, fun T hT _ ↦ h.min T hT⟩,
     fun h => ⟨h.1, fun T hT ↦ (le_total T.encard S.encard).elim (h.2 hT) id⟩⟩
 
 lemma IsCover.of_vertexDelete (h : (G - X).IsCover S) : G.IsCover ((V(G) ∩ X) ∪ S) where
-  subset := sorry
-  cover e he := sorry
+  subset := by
+    have := h.subset
+    simp at this
+    tauto_set
+  cover e he := by
+    rw [edge_mem_iff_exists_isLink] at he
+    obtain ⟨x, y, hexy⟩ := he
+    simp
+    wlog hx : x ∈ X ∨ x ∈ S with aux
+    · specialize aux h e y x hexy.symm
+      apply aux; clear aux
+      simp at hx
+      obtain (hy|hy) := em (y ∈ X)
+        <;> [left ; right]
+      · assumption
+      replace hexy : (G - X).IsLink e x y := by
+        refine hexy.of_le_of_mem vertexDelete_le ?_
+        -- TODO: is this an antipattern?
+        simp; grind
+      grind [h.mem_or_mem_of_isLink hexy]
+    refine ⟨x, ?_, hexy.inc_left⟩
+    have : x ∈ V(G) := hexy.left_mem
+    grind
+
 
 lemma IsCover.isMinCover_of_encard_eq (hC : G.IsCover S) (h : S.encard = τ(G)) :
     G.IsMinCover S where
   toIsCover := hC
   min T hT := by
-    sorry
+    grind [coverNumber, sInf_le]
 
-def IsMatching.mapToCover (hM : G.IsMatching M) (hC : G.IsCover S) : M → S := by
-  sorry
+-- TODO: should this be a thing? and if so, where should it go?
+-- Might be good to have this for parity with `Nat`?
+lemma _root_.ENat.sInf_mem {s : Set ℕ∞} (h : s.Nonempty) : sInf s ∈ s :=
+  csInf_mem h
 
+/-- There exists a trivial cover (the entire vertex set). -/
+lemma isCover_vertexSet (G : Graph α β) : G.IsCover V(G) where
+  subset := by rfl
+  cover e he := by
+    simpa only [setIncEdges_vertexSet]
+
+-- Might be useful to have it in `Exists` form
+lemma exists_isCover (G : Graph α β) : ∃ S, G.IsCover S := ⟨V(G), G.isCover_vertexSet⟩
+
+lemma vertexSet_encard_mem_coverNumberSet : V(G).encard ∈ G.coverNumberSet := by
+  simp
+  refine ⟨V(G), G.isCover_vertexSet, rfl⟩
+
+lemma coverNumberSet_nonempty : G.coverNumberSet.Nonempty := by
+  refine ⟨V(G).encard, vertexSet_encard_mem_coverNumberSet⟩
+
+lemma coverNumber_le_vertexSet_encard (G : Graph α β) : τ(G) ≤ V(G).encard := by
+  simp only [coverNumber]
+  refine sInf_le_of_le G.vertexSet_encard_mem_coverNumberSet (le_refl _)
+
+-- lemma exists_isMinCover_of_finite [G.Finite] : ∃ S, G.IsMinCover S := by
+--   have hle := G.coverNumber_le_vertexSet_encard
+--   have finite_encard : V(G).encard ≠ ⊤ := by
+--     have := G.vertexSet_finite
+--     exact encard_ne_top_iff.mpr this
+--   have solver : τ(G) ∈ G.coverNumberSet :=
+--     ENat.sInf_mem coverNumberSet_nonempty
+--   simp at solver
+--   obtain ⟨S, hS, hS_min⟩ := solver
+--   refine ⟨S, hS.isMinCover_of_encard_eq hS_min.symm⟩
+
+-- kinda wacky that this always exists...
+lemma exists_isMinCover (G : Graph α β) : ∃ S, G.IsMinCover S := by
+  have : τ(G) ∈ G.coverNumberSet := csInf_mem coverNumberSet_nonempty
+  simp at this
+  obtain ⟨S, hS, hS_min⟩ := this
+  refine ⟨S, hS.isMinCover_of_encard_eq hS_min.symm⟩
+
+lemma IsCover.intersect_endSet_nonempty (hC : G.IsCover S) (he : e ∈ E(G)) :
+    Nonempty ↑(S ∩ V(G, e)) := by
+  have ⟨x, y, hxy⟩ := exists_isLink_of_mem_edgeSet he
+  obtain (h|h) := hC.mem_or_mem_of_isLink hxy
+    <;> [refine ⟨x, ?_⟩ ; refine ⟨y, ?_⟩]
+    <;> tauto_set
+
+noncomputable def IsMatching.mapToCover (hM : G.IsMatching M) (hC : G.IsCover S) : M → S := by
+  -- we should be able to arbitrarily choose either vertex for any e ∈ M
+  intro ⟨e, he⟩
+  have heE : e ∈ E(G) := hM.subset he
+  -- take ends, cap with S?
+  have nonempty := hC.intersect_endSet_nonempty heE
+  obtain ⟨x, hx⟩ := Classical.choice nonempty
+  refine ⟨x, hx.1⟩
+
+-- set_option pp.proofs true in
 lemma IsMatching.mapToCover_inj (hM : G.IsMatching M) (hC : G.IsCover S) :
     Function.Injective (hM.mapToCover hC) := by
-  sorry
+  intro ⟨e, he⟩ ⟨f, hf⟩ heq
+  simp only [Subtype.mk.injEq]
+  by_contra! hcon
+  unfold mapToCover at heq
+  simp at heq
+  -- TODO: this feels like a code smell
+  set ex := (Classical.choice (IsCover.intersect_endSet_nonempty hC (hM.subset he)))
+  set ey := (Classical.choice (IsCover.intersect_endSet_nonempty hC (hM.subset hf)))
+  have disj := hM.disjoint he hf hcon
+  refine disj.notMem_of_mem_left (a := ex.1) ex.2.2 ?_
+  rw [heq]
+  exact ey.2.2
 
+-- set_option pp.proofs true in
 lemma IsMatching.mapToCover_inc (hM : G.IsMatching M) (hC : G.IsCover S) (he : e ∈ M) :
     G.Inc e (hM.mapToCover hC ⟨e, he⟩) := by
-  sorry
+  simp only [mapToCover]
+  set x := (Classical.choice (IsCover.intersect_endSet_nonempty hC (hM.subset he)))
+  have hxE : ↑x ∈ V(G, e) := x.2.2
+  rwa [← mem_endSet_iff]
 
 lemma matchingNumber_le_coverNumber : ν(G) ≤ τ(G) := by
-  sorry
+  simp only [matchingNumber, coverNumber]
+  simp only [le_sInf_iff, sSup_le_iff]
+  rintro t ⟨C, hC, rfl⟩ n ⟨M, hM, rfl⟩
+  have solver := (hM.mapToCover_inj hC).encard_range
+  simp only [ENat.card_coe_set_eq, range] at solver
+  refine le_trans solver ?_
+  rw [show C.encard = (univ : Set ↑C).encard by simp]
+  refine encard_le_encard (by grind)
 
+-- TODO:
+-- I don't think this is true in general. This holds for finite sets, but not in general.
+-- In general, we should ask that mapToCover is a bijection instead.
 lemma IsMatching.mapToCover_range_eq_of_encard_eq (hC : G.IsCover S) (hM : G.IsMatching M)
     (h : S.encard = M.encard) : range (hM.mapToCover hC) = ⊤ := by
   sorry
 
+-- TODO: rename
+lemma IsCover.subgraph_cover (hS : H.IsCover S) (hle : G ≤ H) : G.IsCover (S ∩ V(G)) where
+  subset := by tauto_set
+  cover := by
+    intro e he
+    simp
+    have heH := (edgeSet_mono hle) he
+    rw [edge_mem_iff_exists_isLink] at he
+    obtain ⟨x, y, hexy⟩ := he
+    obtain h := hS.mem_or_mem_of_isLink (hexy.of_le hle)
+    wlog hxS : x ∈ S with aux
+    · specialize aux hS hle heH y x hexy.symm h.symm (by grind)
+      assumption
+    refine ⟨x, ⟨hxS, hexy.left_mem⟩, hexy.inc_left⟩
+
 lemma coverNumber_mono (hle : G ≤ H) : τ(G) ≤ τ(H) := by
+  have ⟨S_G, hS_G⟩ := G.exists_isMinCover
+  have ⟨S_H, hS_H⟩ := H.exists_isMinCover
+  have := hS_H.subgraph_cover hle
   sorry
 
 end Graph
