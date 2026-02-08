@@ -224,3 +224,7 @@ protected lemma even_add {m n : ℕ∞} (hm : m ≠ ⊤) (hn : n ≠ ⊤) :
   rw [Nat.even_add]
 
 end Parity
+
+-- This is here for parity with `Nat`; `Nat` has `Nat.sInf_mem` with almost the same type signature.
+lemma sInf_mem {s : Set ℕ∞} (h : s.Nonempty) : sInf s ∈ s :=
+  csInf_mem h
