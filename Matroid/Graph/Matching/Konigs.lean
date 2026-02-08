@@ -63,8 +63,9 @@ lemma IsCover.of_vertexDelete (h : (G - X).IsCover S) : G.IsCover ((V(G) ∩ X) 
       · assumption
       replace hexy : (G - X).IsLink e x y := by
         refine hexy.of_le_of_mem vertexDelete_le ?_
-        -- TODO: is this an antipattern?
-        simp; grind
+        -- TODO: add grind tags for these simps; in general whenever the pattern
+        -- `simp; grind` shows up, add grind tags to those simp lemmas
+        simp only [vertexDelete_edgeSet, mem_setOf_eq]; grind
       grind [h.mem_or_mem_of_isLink hexy]
     refine ⟨x, ?_, hexy.inc_left⟩
     have : x ∈ V(G) := hexy.left_mem
@@ -76,11 +77,6 @@ lemma IsCover.isMinCover_of_encard_eq (hC : G.IsCover S) (h : S.encard = τ(G)) 
   toIsCover := hC
   min T hT := by
     grind [coverNumber, sInf_le]
-
--- TODO: should this be a thing? and if so, where should it go?
--- Might be good to have this for parity with `Nat`?
-lemma _root_.ENat.sInf_mem {s : Set ℕ∞} (h : s.Nonempty) : sInf s ∈ s :=
-  csInf_mem h
 
 /-- There exists a trivial cover (the entire vertex set). -/
 lemma isCover_vertexSet (G : Graph α β) : G.IsCover V(G) where
@@ -144,13 +140,20 @@ lemma IsMatching.mapToCover_inj (hM : G.IsMatching M) (hC : G.IsCover S) :
   by_contra! hcon
   unfold mapToCover at heq
   simp at heq
-  -- TODO: this feels like a code smell
-  set ex := (Classical.choice (IsCover.intersect_endSet_nonempty hC (hM.subset he)))
-  set ey := (Classical.choice (IsCover.intersect_endSet_nonempty hC (hM.subset hf)))
+  -- TODO: this still feels suboptimal.
+  generalize_proofs ex ey at heq
+  -- this leaves `heq : ↑(Classical.choice ex) = ↑(Classical.choice ey)`
+  -- directly trying to destruct ex/ey with `obtain` messes things up
+  -- (it effectively undoes the `generalize_proofs`)
+  set x := Classical.choice ex
+  set y := Classical.choice ey
+  obtain ⟨x, hx⟩ := x
+  obtain ⟨y, hy⟩ := y
+  simp only at heq
   have disj := hM.disjoint he hf hcon
-  refine disj.notMem_of_mem_left (a := ex.1) ex.2.2 ?_
+  refine disj.notMem_of_mem_left (a := x) hx.2 ?_
   rw [heq]
-  exact ey.2.2
+  exact hy.2
 
 -- set_option pp.proofs true in
 lemma IsMatching.mapToCover_inc (hM : G.IsMatching M) (hC : G.IsCover S) (he : e ∈ M) :
@@ -170,11 +173,9 @@ lemma matchingNumber_le_coverNumber : ν(G) ≤ τ(G) := by
   rw [show C.encard = (univ : Set ↑C).encard by simp]
   refine encard_le_encard (by grind)
 
--- TODO:
--- I don't think this is true in general. This holds for finite sets, but not in general.
--- In general, we should ask that mapToCover is a bijection instead.
-lemma IsMatching.mapToCover_range_eq_of_encard_eq (hC : G.IsCover S) (hM : G.IsMatching M)
-    (h : S.encard = M.encard) : range (hM.mapToCover hC) = ⊤ := by
+lemma IsMatching.mapToCover_range_eq_of_encard_eq [G.Finite]
+    (hC : G.IsCover S) (hM : G.IsMatching M) (h : S.encard = M.encard) :
+    range (hM.mapToCover hC) = ⊤ := by
   sorry
 
 -- TODO: rename
