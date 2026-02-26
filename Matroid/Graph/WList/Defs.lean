@@ -752,6 +752,14 @@ protected lemma Inc.vertex_mem (h : w.Inc e x) : x ∈ w := by
   exact h.left_mem
 
 @[simp, grind .]
+protected lemma inc_cons_left (x : α) (e : β) (w : WList α β) : (cons x e w).Inc e x :=
+  ⟨w.first, IsLink.cons_left x e w⟩
+
+@[simp, grind .]
+protected lemma inc_cons_right (x : α) (e : β) (w : WList α β) : (cons x e w).Inc e w.first :=
+  ⟨x, IsLink.cons_right x e w⟩
+
+@[simp, grind .]
 protected lemma IsLink.inc_left (h : w.IsLink e x y) : w.Inc e x :=
   ⟨y, h⟩
 
