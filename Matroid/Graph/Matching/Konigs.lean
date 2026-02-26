@@ -37,6 +37,14 @@ lemma IsMinCover.encard (h : G.IsMinCover S) : S.encard = τ(G) := by
   have := h.min
   grind [le_sInf]
 
+lemma le_matchingNumber_of_mem_matchingNumberSet {n} (hn : n ∈ G.matchingNumberSet) : n ≤ ν(G) := by
+  obtain ⟨M, hM, rfl⟩ := hn
+  exact hM.encard_le
+
+lemma coverNumber_le_of_mem_coverNumberSet {n} (hn : n ∈ G.coverNumberSet) : τ(G) ≤ n := by
+  obtain ⟨S, hS, rfl⟩ := hn
+  exact hS.le_encard
+
 -- TODO: rename; unless we decide to drop the subset condition, then this becomes obsolete
 lemma IsCover.encard_le_vertexSet_encard (h : G.IsCover S) : S.encard ≤ V(G).encard := by
   exact encard_le_encard h.subset
@@ -175,7 +183,7 @@ lemma matchingNumber_le_coverNumber : ν(G) ≤ τ(G) := by
 
 lemma IsMatching.mapToCover_range_eq_of_encard_eq [G.Finite]
     (hC : G.IsCover S) (hM : G.IsMatching M) (h : S.encard = M.encard) :
-    range (hM.mapToCover hC) = ⊤ := by
+    range (hM.mapToCover hC) = S := by
   have S_finite : S.Finite :=
     Set.Finite.subset vertexSet_finite hC.subset
   sorry
@@ -241,6 +249,7 @@ lemma isMatching_lemma_eDegree
     specialize h _ hxP ⟨hxe, he⟩ ⟨hxf, hf⟩
     contradiction
 
+-- I just realized the next 4ish lemmas are duplicates from `Matching/Def.lean`
 @[simp, grind .]
 lemma IsMatching.incEdges_subsingleton (hM : G.IsMatching M) (x : α) :
     E(G ↾ M, x).Subsingleton := by
@@ -302,6 +311,38 @@ lemma IsMatching.anti_left' (hM : G.IsMatching M) (hle : H ≤ G) :
   refine IsMatching.anti_left ?_ hle ?_
   · exact hM.anti_right (by grind)
   grind
+
+lemma exists_isMaxMatching' (G : Graph α β) (hν : ν(G) ≠ ⊤) : ∃ M, G.IsMaxMatching M := by
+  have : ν(G) ∈ G.matchingNumberSet := by
+    have injOn : InjOn ENat.toNat G.matchingNumberSet := by
+      intro i hi j hj heq
+      have hi_le : i ≤ ν(G) := le_matchingNumber_of_mem_matchingNumberSet hi
+      have hj_le : j ≤ ν(G) := le_matchingNumber_of_mem_matchingNumberSet hj
+      enat_to_nat!
+      simp at heq
+      assumption
+    have im_eq : ENat.toNat '' G.matchingNumberSet ⊆ {i | i ≤ ν(G).toNat} := by
+      intro i hi
+      obtain ⟨n, hn, rfl⟩ := hi
+      obtain ⟨M, hM, rfl⟩ := hn
+      exact ENat.toNat_le_toNat hM.encard_le hν
+    have finite : G.matchingNumberSet.Finite := by
+      refine Set.Finite.of_finite_image ?_ injOn
+      refine Set.Finite.subset (finite_le_nat ν(G).toNat) im_eq
+    have : G.matchingNumberSet.Nonempty :=
+      ⟨0, ∅, isMatching_empty, encard_empty.symm⟩
+    exact this.csSup_mem finite
+  obtain ⟨M, hM, hM_eq⟩ := this
+  refine ⟨M, hM.isMaxMatching_of_encard_eq hM_eq.symm⟩
+
+lemma exists_isMaxMatching (G : Graph α β) [G.Finite] : ∃ M, G.IsMaxMatching M := by
+  refine G.exists_isMaxMatching' ?_
+  have := G.matchingNumber_le_coverNumber
+  have τ_finite : τ(G) < ⊤ := by
+        have : V(G).encard < ⊤ := encard_lt_top_iff.mpr ‹G.Finite›.vertexSet_finite
+        have := G.coverNumber_le_vertexSet_encard
+        enat_to_nat!
+  enat_to_nat!
 
 end Graph
 
@@ -577,6 +618,129 @@ lemma incEdges_addEdge_of_notMem_right (e : β) (x y : α) (hy : y ∉ V(G)) :
     E(G.addEdge e x y, y) = {e} := by
   grind only [= mem_incEdges_iff, = mem_singleton_iff, = addEdge_inc_iff, → Inc.vertex_mem]
 
+-- You can take unions of matchings/covers across strongly disjoint graphs
+lemma IsCover.union {H₁ H₂ : Graph α β} {S₁ S₂ : Set α}
+    (hS₁ : H₁.IsCover S₁) (hS₂ : H₂.IsCover S₂) (hdisj : H₁.StronglyDisjoint H₂) :
+    (H₁ ∪ H₂).IsCover (S₁ ∪ S₂) where
+  subset := by grind [union_vertexSet, hS₁.subset, hS₂.subset]
+  cover := by
+    intro e
+    simp [hdisj.compatible.union_inc_iff]
+    rintro (he|he)
+    · apply exists_isLink_of_mem_edgeSet at he
+      obtain ⟨x, y, hexy⟩ := he
+      obtain (h|h) := hS₁.mem_or_mem_of_isLink hexy
+        <;> [use x; use y]
+        <;> refine ⟨Or.inl ‹_›, Or.inl ?_⟩
+        <;> [exact hexy.inc_left ; exact hexy.inc_right]
+    -- not sure how to golf this better
+    apply exists_isLink_of_mem_edgeSet at he
+    obtain ⟨x, y, hexy⟩ := he
+    obtain (h|h) := hS₂.mem_or_mem_of_isLink hexy
+      <;> [use x; use y]
+      <;> refine ⟨Or.inr ‹_›, Or.inr ?_⟩
+      <;> [exact hexy.inc_left ; exact hexy.inc_right]
+
+lemma IsMatching.union
+    {H₁ H₂ : Graph α β} {M₁ M₂ : Set β}
+    (hM₁ : H₁.IsMatching M₁)
+    (hM₂ : H₂.IsMatching M₂)
+    (hdisj : StronglyDisjoint H₁ H₂) :
+    (H₁ ∪ H₂).IsMatching (M₁ ∪ M₂) where
+  -- TODO: grind tags
+  subset := by grind [union_edgeSet, hM₁.subset, hM₂.subset]
+  disjoint e f he hf hne := by
+    have all_left {M : Set β} {H K : Graph α β}
+        (hM : H.IsMatching M) (hdisj : H.StronglyDisjoint K) :
+        ∀ ⦃e⦄, e ∈ M → V(H ∪ K, e) = V(H, e) := by
+      intro e he
+      ext x
+      simp only [endSet, mem_setOf_eq, hdisj.compatible.union_inc_iff]
+      refine ⟨?_, by grind⟩
+      rintro (_|h) <;> [assumption ; exfalso]
+      replace he : e ∈ E(H) := hM.subset he
+      grind [h.edge_mem, hdisj.edge]
+    have all_right : ∀ ⦃e⦄, e ∈ M₂ → V(H₁ ∪ H₂, e) = V(H₂, e) := by
+      have := all_left hM₂ hdisj.symm
+      simpa only [hdisj.compatible.union_comm]
+    specialize all_left hM₁ hdisj
+    match he, hf with
+    | Or.inl he, Or.inl hf
+    | Or.inr he, Or.inr hf =>
+      simp only [all_left, all_right, he, hf]
+      grind only [= disjoint_left, hM₁.disjoint, hM₂.disjoint]
+    | Or.inl he, Or.inr hf
+    | Or.inr he, Or.inl hf =>
+      simp only [all_left, all_right, he, hf]
+      grind only [hdisj.vertex, = disjoint_left, = mem_endSet_iff, → Inc.vertex_mem]
+
+lemma IsMinCover.union {T : Set α}
+    (hS : G.IsMinCover S) (hT : H.IsMinCover T) (hdisj : G.StronglyDisjoint H) :
+    (G ∪ H).IsMinCover (S ∪ T) := by
+  refine ⟨hS.toIsCover.union hT.toIsCover hdisj, ?_⟩
+  intro A hA
+  have hAG : G.IsCover (A ∩ V(G)) :=
+    hA.subgraph_cover (G.left_le_union H)
+  have hAH : H.IsCover (A ∩ V(H)) := by
+    have : H ≤ G ∪ H := by grind only [hdisj.compatible.union_comm, Graph.left_le_union]
+    exact hA.subgraph_cover this
+  have ST_disj : Disjoint S T := by grind [hS.subset, hT.subset, hdisj.vertex]
+  rw [encard_union_eq ST_disj]
+  have : A = (A ∩ V(G)) ∪ (A ∩ V(H)) := by
+    have : V(G ∪ H) = V(G) ∪ V(H) := by exact union_vertexSet G H
+    grind [hA.subset]
+  rw [this,
+    encard_union_eq (show Disjoint (A ∩ V(G)) (A ∩ V(H)) by grind [hdisj.vertex])];
+    clear this
+  have hle1 := hAG.le_encard
+  have hle2 := hAH.le_encard
+  rw [hS.encard, hT.encard]
+  exact add_le_add hle1 hle2
+
+lemma IsMaxMatching.union {N : Set β}
+    (hM : G.IsMaxMatching M) (hN : H.IsMaxMatching N) (hdisj : G.StronglyDisjoint H) :
+    (G ∪ H).IsMaxMatching (M ∪ N) := by
+  refine ⟨hM.toIsMatching.union hN.toIsMatching hdisj, ?_⟩
+  intro F hF
+  have hFG : G.IsMatching (E(G) ∩ F) := hF.anti_left' (G.left_le_union H)
+  have hFH : H.IsMatching (E(H) ∩ F) :=
+    hF.anti_left' <| by grind only [hdisj.compatible.union_comm, Graph.left_le_union]
+  rw [encard_union_eq (show Disjoint M N by grind [hM.subset, hN.subset, hdisj.edge]),
+    show F = (E(G) ∩ F) ∪ (E(H) ∩ F) by grind [hF.subset, union_edgeSet],
+    encard_union_eq (show Disjoint (E(G) ∩ F) (E(H) ∩ F) by grind [hdisj.edge]),
+    hM.encard, hN.encard]
+  have hle1 := hFG.encard_le
+  have hle2 := hFH.encard_le
+  exact add_le_add hle1 hle2
+
+@[simp, grind =]
+lemma coverNumber_union (hdisj : G.StronglyDisjoint H) : τ(G ∪ H) = τ(G) + τ(H) := by
+  obtain ⟨S, hS⟩ := G.exists_isMinCover
+  obtain ⟨T, hT⟩ := H.exists_isMinCover
+  have ST_minCover := hS.union hT hdisj
+  rw [← hS.encard, ← hT.encard, ← ST_minCover.encard]
+  refine encard_union_eq ?_
+  grind  [hdisj.vertex, hS.subset, hT.subset]
+
+@[simp, grind =]
+lemma matchingNumber_union (hdisj : G.StronglyDisjoint H) : ν(G ∪ H) = ν(G) + ν(H) := by
+  obtain (hinf|hfinite) := em' (ν(G) ≠ ⊤ ∧ ν(H) ≠ ⊤)
+  · wlog hν : (ν(G) = ⊤) with aux
+    · specialize aux hdisj.symm (by grind) (by grind)
+      rw [hdisj.compatible.union_comm, aux, add_comm]
+    simp [hν]
+    rw [matchingNumber, sSup_eq_top] at hν ⊢
+    intro b hb
+    obtain ⟨n, hn, hbn⟩ := hν b hb
+    obtain ⟨M, hM, rfl⟩ := hn
+    refine ⟨M.encard, ?_, hbn⟩
+    refine ⟨M, hM.of_le (G.left_le_union H), rfl⟩
+  obtain ⟨M, hM⟩ := G.exists_isMaxMatching' hfinite.1
+  obtain ⟨N, hN⟩ := H.exists_isMaxMatching' hfinite.2
+  have MN_maxMatching := hM.union hN hdisj
+  rw [← hM.encard, ← hN.encard, ← MN_maxMatching.encard]
+  refine encard_union_eq <| by grind [hdisj.edge, hM.subset, hN.subset]
+
 lemma gah (hM : G.IsMatching M) (hx : E(G ↾ M, x).encard = 0) (hy : E(G ↾ M, y).encard = 0)
     (he : e ∉ M) :
     (G.addEdge e x y).IsMatching (insert e M) := by
@@ -626,7 +790,6 @@ lemma IsPath.pathMatching_isMatching (hP : G.IsPath P) : P.toGraph.IsMatching P.
     rw [this]; clear this
     have hP' : G.IsPath (cons v f w) := by
       rw [cons_isPath_iff] at hP; grind
-    have hP'_simple : (cons v f w).toGraph.Simple := hP'.toGraph_simple
     have f_not_in : f ∉ w.pathMatching := by
       grind [hP.edge_nodup, pathMatching_subset]
     refine gah ?_ ?_ ?_ ?_ 
@@ -645,6 +808,21 @@ lemma IsPath.pathMatching_isMatching (hP : G.IsPath P) : P.toGraph.IsMatching P.
       grind
     · grind [hP.edge_nodup, pathMatching_subset]
 
+lemma pathMatching_ncard {P : WList α β} (hvertex_nodup : P.vertex.Nodup)
+    (hedge_nodup : P.edge.Nodup) :
+    P.pathMatching.ncard = V(P).ncard / 2 := by
+  match P with
+  | nil _ => simp [pathMatching]
+  | cons u _ (nil v) =>
+    simp_all [pathMatching]
+  | cons u e (cons v f w) =>
+    simp_all [pathMatching]
+    have IH := pathMatching_ncard (P := w) (by grind) (by grind)
+    have pathMatching_finite : w.pathMatching.Finite :=
+      w.edgeSet_finite.subset w.pathMatching_subset
+    rw [ncard_insert_of_notMem (hs := pathMatching_finite)]
+    · omega
+    grind [w.pathMatching_subset]
 
 lemma IsPathGraph.konig (h : G.IsPathGraph) : τ(G) = ν(G) := by
   have := h.finite
@@ -653,10 +831,75 @@ lemma IsPathGraph.konig (h : G.IsPathGraph) : τ(G) = ν(G) := by
   · rw [← pathCover_ncard hP.nodup,
     (this.vertexSet_finite.subset <| by simpa using P.pathCover_subset).cast_ncard_eq]
     exact (pathCover_isCover hP.isWalk.wellFormed).le_encard
-  sorry
+  rw [← pathMatching_ncard hP.nodup hP.edge_nodup,
+    (this.edgeSet_finite.subset <| by simpa using P.pathMatching_subset).cast_ncard_eq]
+  exact hP.pathMatching_isMatching.encard_le
+
+lemma pathCover_odd {w : WList α β} (h : Odd w.length) : w.last ∈ w.pathCover := by
+  match w with
+  | nil _ => simp at h
+  | cons _ _ (nil v) =>
+    simp [pathCover]
+  | cons u e (cons v f w) =>
+    replace h : Odd w.length := by
+      -- TODO: grind tag
+      grind [cons_length]
+    have IH := pathCover_odd h
+    grind [pathCover]
 
 lemma IsCycleGraph.konig (hB : G.Bipartite) (h : G.IsCycleGraph) : τ(G) = ν(G) := by
-  sorry
+  -- bipartite, so only even cycles
+  have G_finite := h.finite
+  rw [isCycleGraph_iff_toGraph_isCyclicWalk] at h
+  obtain ⟨C, hC, rfl⟩ := h
+  have C_even := hB.length_even_of_isWalk_isClosed hC.isWalk hC.isClosed
+  have C_nontrivial : C.Nontrivial := by
+    -- TODO: grind tags
+    rw [← two_le_length_iff]
+    have : 1 ≤ C.length := by grind [hC.nonempty, one_le_length_iff]
+    grind
+  let P := C.tail
+  have P_isPath := hC.tail_isPath
+  have pathCover := pathCover_isCover P_isPath.isWalk.wellFormed
+  replace pathCover : C.toGraph.IsCover C.tail.pathCover := by
+    constructor
+    · refine le_trans pathCover.subset ?_
+      simp only [toGraph_vertexSet, le_eq_subset]
+      -- TODO: there should be some `∀ (w : WList α β), V(w.tail) ⊆ V(w)`
+      refine WList.IsSuffix.subset (tail_isSuffix C)
+    have := pathCover.cover
+    intro e he
+    simp
+    obtain (heC|heC) := em (e ∈ E(C.tail.toGraph))
+    · apply this at heC
+      obtain ⟨x, hx, hinc⟩ := heC
+      refine ⟨x, hx, ?_⟩
+      refine hinc.of_le P_isPath.isWalk.toGraph_le
+    cases C with
+    | nil => simp at C_nontrivial
+    | cons u f w =>
+    replace heC : e = f := by
+      simp at heC he
+      grind
+    subst f
+    have w_odd : Odd w.length := by grind [cons_length]
+    refine ⟨u, ?_, by simp [hC.isWalk.wellFormed.toGraph_inc]⟩
+    simp [show (u = w.last) by (have := hC.isClosed; simp at this; assumption)]
+    exact pathCover_odd w_odd
+  refine matchingNumber_le_coverNumber.antisymm' <| le_trans (b := ↑(V(C.tail).ncard / 2)) ?_ ?_
+  · rw [← pathCover_ncard hC.nodup]
+    have : C.tail.pathCover.Finite := by
+      have : V(C.tail) ⊆ V(C) := WList.IsSuffix.subset (tail_isSuffix C)
+      exact G_finite.vertexSet_finite.subset <| by grind [toGraph_vertexSet, C.tail.pathCover_subset]
+    rw [this.cast_ncard_eq]
+    grw [← pathCover.le_encard]
+  rw [← pathMatching_ncard P_isPath.nodup P_isPath.edge_nodup]
+  have : C.tail.pathMatching.Finite := by
+    have : E(C.tail) ⊆ E(C) := WList.IsSuffix.edge_subset (tail_isSuffix C)
+    exact G_finite.edgeSet_finite.subset <| by grind [toGraph_edgeSet, C.tail.pathMatching_subset]
+  grw [this.cast_ncard_eq, P_isPath.pathMatching_isMatching.encard_le]
+  refine matchingNumber_mono ?_
+  exact P_isPath.isWalk.toGraph_le
 
 /-!
 ### König's Matching Theorem
@@ -678,23 +921,191 @@ Let W' be a cover of G \ f with |W'| = ν(G). [cite: 22]
 Since no edge of M is incident at v, it follows that W' does not contain v. [cite: 22]
 So W' contains u and is a cover of G. [cite: 22]
 -/
-theorem Konig'sTheorem [H.Finite] (hB : H.Bipartite) : τ(H) = ν(H) := by
+theorem Konig'sTheorem [H.Simple] [H.Finite] (hB : H.Bipartite) : τ(H) = ν(H) := by
   refine of_not_exists_minimal (P := fun H ↦ τ(H) = ν(H)) fun G hle _ hMin ↦ ?_
   push_neg at hMin
   replace hB := hB.of_le hle
+  have _ : G.Loopless := hB.loopless
+  have _ : G.Simple := Simple.mono ‹_› hle
+  -- trivial case: `G` is empty.
+  obtain (hempty|hnonempty) := em' (V(G).Nonempty)
+  · replace hempty : V(G).encard = 0 := by simpa only [encard_eq_zero, ← not_nonempty_iff_eq_empty]
+    have hτ : τ(G) = 0 := by have := G.coverNumber_le_vertexSet_encard; enat_to_nat! <;> omega
+    have hν : ν(G) = 0 := by
+      have := G.matchingNumber_le_coverNumber; enat_to_nat! <;> omega
+    grind only [hMin.1]
+  simp [minimal_iff_forall_lt] at hMin
   have hcon : G.Connected := by
     /- Otherwise, by def of `Connected`, there is a strictly smaller component of `G`.
     `τ` and `ν` are additive over the components so at least one component must have `τ` or `ν`
     different.
     That component is a smaller counterexample to the theorem, contradicting minimality.-/
-    sorry
+    by_contra! hcon
+    apply nonempty_separation_of_not_connected hnonempty at hcon
+    obtain ⟨S⟩ := hcon
+    have hdisj := S.induce_stronglyDisjoint
+    have right_lt := S.induce_right_lt
+    have left_eq : τ(G[S.left]) = ν(G[S.left]) := hMin.2 S.induce_left_lt
+    have right_eq : τ(G[S.right]) = ν(G[S.right]) := hMin.2 S.induce_right_lt
+    refine hMin.1 ?_
+    rw [S.eq_union, coverNumber_union hdisj, matchingNumber_union hdisj, left_eq, right_eq]
+
   obtain ⟨u, hu, hdegu⟩ : ∃ u ∈ V(G), 3 ≤ G.degree u := by
     /- Otherwise, by `isPathGraph_or_isCycleGraph_of_maxDegreeLE`, `G` would be a path or cycle,
     By lemmas above, any path graph or cycle graph has `τ = ν`, contradicting `τ ≠ ν` assumption.-/
-    sorry
+    by_contra! bad
+    replace bad : G.MaxDegreeLE 2 := by
+      rw [maxDegreeLE_iff]
+      grind only
+    refine hMin.1 ?_
+    obtain (h|h) := hcon.isPathGraph_or_isCycleGraph_of_maxDegreeLE bad
+      <;> [exact IsPathGraph.konig ‹_›; exact IsCycleGraph.konig ‹_› ‹_›]
   obtain ⟨e, v, huv⟩ := G.degree_ne_zero_iff_inc (v := u) |>.mp (by omega)
 
-  -- have hlt := G.coverNumber_le_matchingNumber.lt_of_ne hne
-  sorry
+  /-
+  Case 1: If ν(G \ v) < ν(G). [cite: 16]
+  By minimality, G \ v has a cover W' with |W'| < ν(G). [cite: 16]
+  Hence, W' ∪ {v} is a cover of G with cardinality ν(G) at most. [cite: 17]
+  -/
+  obtain (ν_ne|ν_eq) := em' (ν(G - v) = ν(G))
+  · have ν_le : ν(G - v) ≤ ν(G) :=
+      matchingNumber_mono vertexDelete_le
+    obtain ⟨W', hW'⟩ := (G - v).exists_isMinCover
+    have hlt : G - v < G := vertexDelete_singleton_lt huv.right_mem
+    have W_cover : G.IsCover (insert v W') := by
+      refine ⟨by grind [huv.right_mem, hW'.subset, vertexSet_mono hlt.le], ?_⟩
+      intro e he
+      simp only [mem_setIncEdges_iff, mem_insert_iff, exists_eq_or_imp]
+      rw [← G.vertexDelete_singleton_edgeSet v] at he
+      obtain (he|he) := he
+        <;> [right; left]
+      · exact setIncEdges_mono hlt.le _ <| hW'.cover he
+      exact he
+    have W_encard : (insert v W').encard = W'.encard + 1 := by
+      refine W'.encard_insert_of_notMem ?_
+      have := hW'.subset
+      simp at this
+      grind only [= subset_def, = mem_diff, = mem_singleton_iff]
+    have := W_cover.le_encard
+    rw [W_encard, hW'.encard, hMin.2 hlt] at this
+    have hle := G.matchingNumber_le_coverNumber
+    have τ_finite : τ(G) < ⊤ := by
+      have : V(G).encard < ⊤ := encard_lt_top_iff.mpr ‹G.Finite›.vertexSet_finite
+      have := G.coverNumber_le_vertexSet_encard
+      enat_to_nat!
+    enat_to_nat! <;> omega
+
+  /-
+  Case 2: Assume there exists a maximum matching M of G having no edge incident at v. [cite: 18]
+  Let f be an edge of G \ M incident at u but not at v. [cite: 18]
+  Let W' be a cover of G \ f with |W'| = ν(G). [cite: 22]
+  Since no edge of M is incident at v, it follows that W' does not contain v. [cite: 22]
+  So W' contains u and is a cover of G. [cite: 22]
+  -/
+  obtain ⟨M, hM⟩ := (G - v).exists_isMaxMatching
+  have hMG : G.IsMaxMatching M := by
+    refine (hM.of_le vertexDelete_le).isMaxMatching_of_encard_eq ?_
+    rw [hM.encard, ν_eq]
+  have no_touch {f} (hf : f ∈ M) : ¬ G.Inc f v := by
+    have := hM.subset hf
+    simp at this
+    obtain ⟨x, y, hxy⟩ := this
+    intro bad
+    obtain ⟨w, hw⟩ := bad
+    grind only [→ IsLink.inc_left, Inc.eq_or_eq_of_isLink]
+
+  -- Let f be an edge of G \ M incident at u but not at v.
+  obtain neighbors : 1 < N(G ＼ M, u).ncard := by
+    rw [← degree_eq_ncard_adj, degree_eq_ncard_inc]
+    have bwah : E(G, u) = E(G ＼ M, u) ∪ (E(G, u) ∩ M) := by
+      sorry
+    have hdisj : Disjoint E(G ＼ M, u) (E(G, u) ∩ M) := by
+      sorry
+    have fin1 : E(G ＼ M, u).Finite := sorry
+    have GMu_deg : (M ∩ E(G, u)).encard ≤ ↑(1 : ℕ) := hMG.degree_le_one u
+    rw [inter_comm, encard_le_coe_iff_finite_ncard_le] at GMu_deg
+    rw [degree_eq_ncard_inc, bwah, ncard_union_eq hdisj fin1 GMu_deg.1] at hdegu
+    omega
+  obtain ⟨x, hux, hxv_ne⟩ := exists_ne_of_one_lt_ncard neighbors v
+  clear neighbors
+  obtain ⟨f, hf⟩ := hux
+
+  -- "Let W' be a cover of G \ f with |W'| = ν(G)"
+  -- f ∈ E(G \ M), so M ⊆ E(G \ f), so M is still a valid matching for (G \ f),
+  -- so ν(G) ≤ ν(G \ f) ≤ ν(G), so ν(G \ f) = ν(G).
+  -- Since (G \ f) < G, therefore by minimality assumption τ(G \ f) = ν(G \ f),
+  -- so we can find such a cover.
+  have hMG' : (G ＼ {f}).IsMatching M := by
+    refine hMG.anti_left edgeDelete_le ?_
+    have := hf.edge_mem
+    simp at this ⊢
+    grind [hMG.subset]
+
+  have G'_matchingNumber : ν(G ＼ {f}) = ν(G) := by
+    refine le_antisymm (matchingNumber_mono edgeDelete_le) ?_
+    rw [← hMG.encard]
+    exact hMG'.encard_le
+  have hlt : G ＼ {f} < G := by
+    refine lt_of_le_of_edgeSet_ssubset edgeDelete_le ?_
+    rw [ssubset_iff_subset_ne]
+    refine ⟨edgeSet_mono edgeDelete_le, ?_⟩
+    simp
+    exact edgeSet_mono edgeDelete_le hf.edge_mem
+  have G'_coverNumber : τ(G ＼ {f}) = ν(G) := by
+    rw [← G'_matchingNumber]
+    refine hMin.2 hlt
+  obtain ⟨W', hW'⟩ := (G ＼ {f}).exists_isMinCover
+
+  -- "Since no edge of M is incident at v, it follows that W' does not contain v.
+  -- M is a matching for G \ f; each edge of M must have one endpoint in W'.
+  -- Moreover, each edge contributes a unique vx to W', otherwise two edges in M would
+  -- share a vertex.
+  -- Since |M| = ν(G) = |W'|, therefore W' ⊆ V(G, M).
+  -- And since no edge of M is incident at v, therefore v ∉ V(G, M), therefore v ∉ W'.
+  have hvW' : v ∉ W' := by
+    have : W' ⊆ V(G, M) := by
+      intro x hxW'
+      rw [← hMG'.mapToCover_range_eq_of_encard_eq hW'.toIsCover (by grind [hW'.encard, hMG.encard])]
+        at hxW'
+      simp only [mem_image, mem_range] at hxW'
+      obtain ⟨x', ⟨e, he⟩, rfl⟩ := hxW'
+      have := hMG'.mapToCover_inc hW'.toIsCover e.2
+      rw [he] at this
+      simp only [mem_incVertexSet_iff]
+      refine ⟨e, e.2, this.of_le edgeDelete_le⟩
+    intro bad
+    apply this at bad
+    simp only [mem_incVertexSet_iff] at bad
+    obtain ⟨e, heM, he⟩ := bad
+    exact no_touch heM he
+
+  -- "So W' contains u and is a cover of G."
+  -- Since uv ∈ E(G), and f ≠ uv, therefore uv ∈ E(G \ f).
+  -- Since W' doesn't contain v, it must therefore contain u.
+  have huW' : u ∈ W' := by
+    have hne : e ≠ f := by
+      rintro rfl
+      have := hf.of_le edgeDelete_le |>.right_unique huv
+      contradiction
+    have heG' : e ∈ E(G ＼ {f}) := by grind [edgeDelete_edgeSet]
+    grind only [hW'.mem_or_mem_of_isLink (huv.of_le_of_mem edgeDelete_le heG')]
+  -- So W' also covers f (since f = ux), so W' is a cover of G
+  have hW'G : G.IsCover W' := by
+    refine ⟨?_, ?_⟩
+    · simpa using hW'.subset
+    intro edge hedge
+    obtain (h|h) := em' (edge = f)
+    · replace h : edge ∈ E(G ＼ {f}) := by grind
+      apply hW'.cover at h
+      exact setIncEdges_mono edgeDelete_le _ h
+    symm at h
+    obtain rfl := h
+    refine ⟨u, huW', ?_⟩
+    exact hf.of_le edgeDelete_le |>.inc_left
+
+  -- so τ(G) ≤ |W'| = ν(G)
+  refine hMin.1 ?_
+  refine le_antisymm ?_ G.matchingNumber_le_coverNumber
+  grw [hW'G.le_encard, ← G'_coverNumber, hW'.encard]
 
 end Graph
