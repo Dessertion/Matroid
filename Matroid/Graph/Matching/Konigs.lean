@@ -80,9 +80,9 @@ lemma IsCover.of_vertexDelete (h : (G - X).IsCover S) : G.IsCover ((V(G) ∩ X) 
     grind
 
 
-lemma IsCover.isMinCover_of_encard_eq (hC : G.IsCover S) (h : S.encard = τ(G)) :
+lemma IsCover.isMinCover_of_encard_eq (hS : G.IsCover S) (h : S.encard = τ(G)) :
     G.IsMinCover S where
-  toIsCover := hC
+  toIsCover := hS
   min T hT := by
     grind [coverNumber, sInf_le]
 
@@ -124,25 +124,25 @@ lemma exists_isMinCover (G : Graph α β) : ∃ S, G.IsMinCover S := by
   obtain ⟨S, hS, hS_min⟩ := this
   refine ⟨S, hS.isMinCover_of_encard_eq hS_min.symm⟩
 
-lemma IsCover.intersect_endSet_nonempty (hC : G.IsCover S) (he : e ∈ E(G)) :
+lemma IsCover.intersect_endSet_nonempty (hS : G.IsCover S) (he : e ∈ E(G)) :
     Nonempty ↑(S ∩ V(G, e)) := by
   have ⟨x, y, hxy⟩ := exists_isLink_of_mem_edgeSet he
-  obtain (h|h) := hC.mem_or_mem_of_isLink hxy
+  obtain (h|h) := hS.mem_or_mem_of_isLink hxy
     <;> [refine ⟨x, ?_⟩ ; refine ⟨y, ?_⟩]
     <;> tauto_set
 
-noncomputable def IsMatching.mapToCover (hM : G.IsMatching M) (hC : G.IsCover S) : M → S := by
+noncomputable def IsMatching.mapToCover (hM : G.IsMatching M) (hS : G.IsCover S) : M → S := by
   -- we should be able to arbitrarily choose either vertex for any e ∈ M
   intro ⟨e, he⟩
   have heE : e ∈ E(G) := hM.subset he
   -- take ends, cap with S?
-  have nonempty := hC.intersect_endSet_nonempty heE
+  have nonempty := hS.intersect_endSet_nonempty heE
   obtain ⟨x, hx⟩ := Classical.choice nonempty
   refine ⟨x, hx.1⟩
 
 -- set_option pp.proofs true in
-lemma IsMatching.mapToCover_inj (hM : G.IsMatching M) (hC : G.IsCover S) :
-    Function.Injective (hM.mapToCover hC) := by
+lemma IsMatching.mapToCover_inj (hM : G.IsMatching M) (hS : G.IsCover S) :
+    Function.Injective (hM.mapToCover hS) := by
   intro ⟨e, he⟩ ⟨f, hf⟩ heq
   simp only [Subtype.mk.injEq]
   by_contra! hcon
@@ -164,18 +164,18 @@ lemma IsMatching.mapToCover_inj (hM : G.IsMatching M) (hC : G.IsCover S) :
   exact hy.2
 
 -- set_option pp.proofs true in
-lemma IsMatching.mapToCover_inc (hM : G.IsMatching M) (hC : G.IsCover S) (he : e ∈ M) :
-    G.Inc e (hM.mapToCover hC ⟨e, he⟩) := by
+lemma IsMatching.mapToCover_inc (hM : G.IsMatching M) (hS : G.IsCover S) (he : e ∈ M) :
+    G.Inc e (hM.mapToCover hS ⟨e, he⟩) := by
   simp only [mapToCover]
-  set x := (Classical.choice (IsCover.intersect_endSet_nonempty hC (hM.subset he)))
+  set x := (Classical.choice (IsCover.intersect_endSet_nonempty hS (hM.subset he)))
   have hxE : ↑x ∈ V(G, e) := x.2.2
   rwa [← mem_endSet_iff]
 
 lemma matchingNumber_le_coverNumber : ν(G) ≤ τ(G) := by
   simp only [matchingNumber, coverNumber]
   simp only [le_sInf_iff, sSup_le_iff]
-  rintro t ⟨C, hC, rfl⟩ n ⟨M, hM, rfl⟩
-  have solver := (hM.mapToCover_inj hC).encard_range
+  rintro t ⟨C, hS, rfl⟩ n ⟨M, hM, rfl⟩
+  have solver := (hM.mapToCover_inj hS).encard_range
   simp only [ENat.card_coe_set_eq, range] at solver
   refine le_trans solver ?_
   rw [show C.encard = (univ : Set ↑C).encard by simp]
@@ -187,19 +187,19 @@ lemma IsMatching.encard_le_isCover_encard (hM : G.IsMatching M) (hS : G.IsCover 
   exact matchingNumber_le_coverNumber
 
 lemma IsMatching.mapToCover_range_eq_of_encard_eq [G.Finite]
-    (hC : G.IsCover S) (hM : G.IsMatching M) (h : S.encard = M.encard) :
-    range (hM.mapToCover hC) = S := by
+    (hS : G.IsCover S) (hM : G.IsMatching M) (h : S.encard = M.encard) :
+    range (hM.mapToCover hS) = S := by
   have S_finite : S.Finite :=
-    Set.Finite.subset vertexSet_finite hC.subset
+    Set.Finite.subset vertexSet_finite hS.subset
   have M_finite : M.Finite :=
     Set.Finite.subset edgeSet_finite hM.subset
-  have subset : Subtype.val '' range (hM.mapToCover hC) ⊆ S := by
+  have subset : Subtype.val '' range (hM.mapToCover hS) ⊆ S := by
     simp only [image_subset_iff, Subtype.coe_preimage_self, subset_univ]
     -- TODO: pain point, switching between encard and ncard
     -- (need ncard because `Set.subset_iff_eq_of_ncard_le` has no encard equivalent)
-  have : (Subtype.val '' range (hM.mapToCover hC) |>.ncard) = M.ncard := by
+  have : (Subtype.val '' range (hM.mapToCover hS) |>.ncard) = M.ncard := by
     simp only [ncard_image_of_injective _ Subtype.val_injective,
-      ncard_range_of_injective (hM.mapToCover_inj hC), Nat.card_coe_set_eq]
+      ncard_range_of_injective (hM.mapToCover_inj hS), Nat.card_coe_set_eq]
   rwa [← subset_iff_eq_of_ncard_le ?_ S_finite]
   simp only [← S_finite.cast_ncard_eq, ← M_finite.cast_ncard_eq, Nat.cast_inj] at h
   rw [this, h]
