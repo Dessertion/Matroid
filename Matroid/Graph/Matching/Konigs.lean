@@ -181,12 +181,28 @@ lemma matchingNumber_le_coverNumber : ν(G) ≤ τ(G) := by
   rw [show C.encard = (univ : Set ↑C).encard by simp]
   refine encard_le_encard (by grind)
 
+lemma IsMatching.encard_le_isCover_encard (hM : G.IsMatching M) (hS : G.IsCover S) :
+    M.encard ≤ S.encard := by
+  grw [hM.encard_le, ← hS.le_encard]
+  exact matchingNumber_le_coverNumber
+
 lemma IsMatching.mapToCover_range_eq_of_encard_eq [G.Finite]
     (hC : G.IsCover S) (hM : G.IsMatching M) (h : S.encard = M.encard) :
     range (hM.mapToCover hC) = S := by
   have S_finite : S.Finite :=
     Set.Finite.subset vertexSet_finite hC.subset
-  sorry
+  have M_finite : M.Finite :=
+    Set.Finite.subset edgeSet_finite hM.subset
+  have subset : Subtype.val '' range (hM.mapToCover hC) ⊆ S := by
+    simp only [image_subset_iff, Subtype.coe_preimage_self, subset_univ]
+    -- TODO: pain point, switching between encard and ncard
+    -- (need ncard because `Set.subset_iff_eq_of_ncard_le` has no encard equivalent)
+  have : (Subtype.val '' range (hM.mapToCover hC) |>.ncard) = M.ncard := by
+    simp only [ncard_image_of_injective _ Subtype.val_injective,
+      ncard_range_of_injective (hM.mapToCover_inj hC), Nat.card_coe_set_eq]
+  rwa [← subset_iff_eq_of_ncard_le ?_ S_finite]
+  simp only [← S_finite.cast_ncard_eq, ← M_finite.cast_ncard_eq, Nat.cast_inj] at h
+  rw [this, h]
 
 -- TODO: rename
 lemma IsCover.subgraph_cover (hS : H.IsCover S) (hle : G ≤ H) : G.IsCover (S ∩ V(G)) where
@@ -1018,10 +1034,11 @@ theorem Konig'sTheorem [H.Simple] [H.Finite] (hB : H.Bipartite) : τ(H) = ν(H) 
   obtain neighbors : 1 < N(G ＼ M, u).ncard := by
     rw [← degree_eq_ncard_adj, degree_eq_ncard_inc]
     have bwah : E(G, u) = E(G ＼ M, u) ∪ (E(G, u) ∩ M) := by
-      sorry
+      simp
     have hdisj : Disjoint E(G ＼ M, u) (E(G, u) ∩ M) := by
-      sorry
-    have fin1 : E(G ＼ M, u).Finite := sorry
+      grind
+    have fin1 : E(G ＼ M, u).Finite :=
+      LocallyFinite.finite u
     have GMu_deg : (M ∩ E(G, u)).encard ≤ ↑(1 : ℕ) := hMG.degree_le_one u
     rw [inter_comm, encard_le_coe_iff_finite_ncard_le] at GMu_deg
     rw [degree_eq_ncard_inc, bwah, ncard_union_eq hdisj fin1 GMu_deg.1] at hdegu
