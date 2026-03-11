@@ -114,6 +114,68 @@ lemma IsMatching.maxDegreeLE_one [G.Loopless] (hM : G.IsMatching M) : (G ↾ M).
   fun x ↦ hM.eDegree_le_one x
 
 @[simp, grind .]
+lemma IsMatching.eDegree_eq_fn [DecidablePred (· ∈ V(G, M))] [G.Loopless] (hM : G.IsMatching M) :
+    (G ↾ M).eDegree = fun x ↦ if x ∈ V(G, M) then 1 else 0 := by
+  ext x
+  rw [eDegree_eq_encard_inc]
+  split_ifs with hx
+  · rw [encard_eq_one]
+    simp at hx
+    obtain ⟨e, he, hex⟩ := hx
+    have := exists_eq_singleton_iff_nonempty_subsingleton.mpr ⟨⟨e, ?_⟩, hM.incEdges_subsingleton x⟩
+    · exact this
+    simp
+    exact ⟨hex, he⟩
+  contrapose hx
+  rw [← ne_eq, encard_ne_zero] at hx
+  obtain ⟨e, he⟩ := hx
+  simp only [incEdges_edgeRestrict, mem_inter_iff, mem_incEdges_iff] at he
+  exact ⟨e, he.2, he.1⟩
+
+@[simp, grind .]
+lemma IsMatching.eDegree_le_two (hM : G.IsMatching M) (x : α) :
+    (G ↾ M).eDegree x ≤ 2 := by
+  rw [eDegree_eq_encard_add_encard]
+  have bound := hM.incEdges_encard_le_one x
+  rw [incEdges_eq_isLoopAt_union_isNonloopAt] at bound
+  rw [encard_union_eq (disjoint_isLoopAt_isNonLoopAt)] at bound
+  enat_to_nat!; omega
+
+@[simp, grind .]
+lemma IsMatching.maxDegreeLE_two (hM : G.IsMatching M) : (G ↾ M).MaxDegreeLE 2 :=
+  hM.eDegree_le_two
+
+@[simp, grind .]
+lemma IsMatching.locallyFinite (hM : G.IsMatching M) : (G ↾ M).LocallyFinite :=
+  MaxDegreeLE.locallyFinite hM.maxDegreeLE_two
+
+lemma IsMatching.matched_vertexSet_encard_eq [G.Loopless] (hM : G.IsMatching M) :
+    V(G, M).encard = 2 * M.encard := by
+  classical
+  have : M = E(G ↾ M) := by
+    ext e; grind [hM.subset]
+  conv => rhs; rw [this, ← handshake_eDegree]
+  clear this
+  rw [hM.eDegree_eq_fn, ← ENat.encard_eq_tsum_ite]
+
+lemma IsMatching.matched_vertexSet_encard_le (hM : G.IsMatching M) :
+    V(G, M).encard ≤ 2 * M.encard := by
+  classical
+  have : M = E(G ↾ M) := by
+    ext e; grind [hM.subset]
+  conv => rhs; rw [this, ← handshake_eDegree]
+  clear this
+  have hle : (fun x ↦ if x ∈ V(G, M) then 1 else 0) ≤ (G ↾ M).eDegree := by
+    intro x
+    simp only
+    split_ifs with hx
+    · obtain ⟨e, he⟩ := hx
+      refine Inc.one_le_eDegree (e := e) ?_
+      grind only [edgeRestrict_inc_iff]
+    exact zero_le _
+  grw [← ENat.tsum_le_tsum hle, ← ENat.encard_eq_tsum_ite]
+
+@[simp, grind .]
 lemma isMatching_empty : G.IsMatching ∅ := by
   constructor <;> simp
 
@@ -126,8 +188,7 @@ lemma IsMatching.of_le (hle : G ≤ H) (h : G.IsMatching M) : H.IsMatching M whe
   subset := h.subset.trans (edgeSet_mono hle)
   disjoint e f heM hfM hne := by
     unfold endSet
-    -- TODO: how to repeat a tactic exactly n times?
-    repeat rw [← inc_eq_of_le hle (h.subset ‹_›)]
+    iterate 2 rw [← inc_eq_of_le hle (h.subset ‹_›)]
     exact h.disjoint heM hfM hne
 
 @[simp, grind .]
@@ -628,19 +689,27 @@ lemma IsMatching.inter_encard_eq_of_isCycle_isCompOf_symmDiff (hM : G.IsMatching
 --   clear hcd hmax
 --   sorry -- component partition
 
-lemma IsMatching.isMaxMatching_of_vertex_subset (hM : G.IsMatching M) (hsu : V(G) ⊆ V(G, M)) :
+-- TODO: move
+-- For parity with `Nat.mul_left_cancel`
+lemma _root_.ENat.mul_left_cancel {n m k : ℕ∞} (hn : 0 < n) (h_top : n ≠ ⊤) (h : n * m = n * k) :
+    m = k := by
+  have := ENat.mul_right_strictMono hn.ne.symm h_top |>.injective
+  exact this h
+
+-- this is not true for general G;
+-- in our definition of `IsMatching`, we allow for loops,
+-- which means that the 2 vx graph with 1 edge between them and a loop on each vx
+-- is a counterexample to the general statement.
+lemma IsMatching.isMaxMatching_of_vertex_subset [G.Loopless]
+    (hM : G.IsMatching M) (hsu : V(G) ⊆ V(G, M)) :
     G.IsMaxMatching M where
   toIsMatching := hM
   max M' hM' := by
-    -- TODO: how to prove this easily?
-
-    -- sps |M| < |M'|, for contra
-    -- then there must be some e ∈ M' \ M
-
-    by_contra! hlt
-    -- TODO: i think this lemma is in the wrong file lol
-    have ⟨x, hx⟩ := diff_nonempty_of_encard_lt_encard hlt
-    sorry
+    -- TODO: these fail on grind
+    rw [← ENat.mul_le_mul_left_iff (a := 2) (by simp) (by simp)]
+    iterate 2 rw [← matched_vertexSet_encard_eq ‹_›]
+    grw [encard_le_encard (G.incVertexSet_subset M')]
+    exact encard_le_encard hsu
 
 /-! ### Augmenting paths -/
 
