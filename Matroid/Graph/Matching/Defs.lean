@@ -4,7 +4,7 @@ import Matroid.Parallel
 
 namespace Graph
 
-variable {α β : Type*} {G H C : Graph α β} {S X Y : Set α} {M M' : Set β} {u v x y z : α} {e f : β}
+variable {α β : Type*} {G H C P : Graph α β} {S X Y : Set α} {M M' : Set β} {u v x y z : α} {e f : β}
 
 open Set symmDiff WList
 
@@ -652,7 +652,72 @@ lemma matchingNumber_union (hdisj : G.StronglyDisjoint H) : ν(G ∪ H) = ν(G) 
   rw [← hM.encard, ← hN.encard, ← MN_maxMatching.encard]
   refine encard_union_eq <| by grind [hdisj.edge, hM.subset, hN.subset]
 
+lemma subset_induce_incVertexSet (F : Set β) : E(G) ∩ F ⊆ E(G[V(G, F)]) := by
+  rw [← Subgraph.induce_incVertexSet_inter_eq F]
+  exact inter_subset_left
 
+@[grind →]
+lemma disjoint_of_disjoint_incVertexSet {M N : Set β} (h : Disjoint V(G, M) V(G, N)) :
+    Disjoint (E(G) ∩ M) (E(G) ∩ N) := by
+  have strong_disj : G[V(G, M)].StronglyDisjoint G[V(G, N)] := by
+    rw [stronglyDisjoint_iff_vertexSet_disjoint_compatible]
+    exact ⟨h, Compatible.induce_induce⟩
+  have disj := strong_disj.edge
+  rw [disjoint_left] at disj ⊢
+  intro e heM heN
+  replace heM : e ∈ E(G[V(G, M)]) := subset_induce_incVertexSet _ heM
+  replace heN := subset_induce_incVertexSet _ heN
+  exact disj heM heN
+
+lemma IsMatching.union' {N : Set β}
+    (hM : G.IsMatching M) (hN : G.IsMatching N) (hdisj : Disjoint V(G, M) V(G, N)) :
+    G.IsMatching (M ∪ N) := by
+  have strong_disj : G[V(G, M)].StronglyDisjoint G[V(G, N)] := by
+    rw [stronglyDisjoint_iff_vertexSet_disjoint_compatible]
+    exact ⟨hdisj, Compatible.induce_induce⟩
+  have hM' : G[V(G, M)].IsMatching M := by
+    refine hM.anti_left (induce_le <| G.incVertexSet_subset M) ?_
+    grw [← subset_induce_incVertexSet _]
+    grind [hM.subset]
+  have hN' : G[V(G, N)].IsMatching N := by
+    refine hN.anti_left (induce_le <| G.incVertexSet_subset _) ?_
+    grw [← subset_induce_incVertexSet _]
+    grind [hN.subset]
+  have := hM'.union hN' strong_disj
+  refine this.of_le ?_
+  exact Graph.union_le
+    (induce_le <| G.incVertexSet_subset _)
+    (induce_le <| G.incVertexSet_subset _)
+
+/-- for any vertex matched by a matching, there is a unique edge which covers it --/
+lemma IsMatching.existsUnique_covering_edge (hM : G.IsMatching M) (hx : x ∈ V(G, M)) :
+    ∃! e ∈ M, G.Inc e x := by
+  simp at hx
+  obtain ⟨e, heM, hex⟩ := hx
+  refine ⟨e, ⟨heM, hex⟩, ?_⟩
+  rintro f ⟨hfM, hfx⟩
+  have he : e ∈ E(G ↾ M, x) := by grind
+  have hf : f ∈ E(G ↾ M, x) := by grind
+  exact hM.incEdges_subsingleton _ hf he
+
+noncomputable def IsMatching.covering_edge (hM : G.IsMatching M) : V(G, M) → M := by
+  rintro ⟨_, hx⟩
+  have ex := hM.existsUnique_covering_edge hx
+  exact ⟨ex.choose, ex.choose_spec.1.1⟩
+
+@[simp, grind =>]
+lemma IsMatching.covering_edge_inc (hM : G.IsMatching M) (x : V(G, M)) :
+    G.Inc (hM.covering_edge x) x := by
+  simp [covering_edge]
+  generalize_proofs pf
+  grind only [pf.choose_spec]
+
+@[simp, grind →]
+lemma IsMatching.covering_edge_unique (hM : G.IsMatching M) (heM : e ∈ M) (hex : G.Inc e x) :
+    e = hM.covering_edge ⟨x, by grind⟩ := by
+  simp [covering_edge]
+  generalize_proofs pf
+  exact pf.choose_spec.2 _ heM hex
 
 /-! ### restrict₂ (lemmas needed for Tutte-Berge?) -/
 
@@ -713,11 +778,125 @@ lemma IsMatching.isMaxMatching_of_vertex_subset [G.Loopless]
 
 /-! ### Augmenting paths -/
 
-noncomputable def IsPathGraph.first {P : Graph α β} (hP : P.IsPathGraph) : α :=
+lemma IsPathGraph.simple (hP : P.IsPathGraph) : P.Simple := by
+  obtain ⟨p, hp⟩ := hP
+  rw [hp.2]
+  exact hp.1.toGraph_simple
+
+noncomputable def IsPathGraph.first (hP : P.IsPathGraph) : α :=
   hP.choose.first
 
-noncomputable def IsPathGraph.last {P : Graph α β} (hP : P.IsPathGraph) : α :=
+noncomputable def IsPathGraph.last (hP : P.IsPathGraph) : α :=
   hP.choose.last
+
+-- TODO: move
+lemma _root_.WList.nonempty_iff_toGraph_edgeSet_nonempty {w : WList α β} :
+    w.Nonempty ↔ E(w.toGraph).Nonempty := by
+  simp [toGraph_edgeSet, nonempty_iff_exists_edge, ← mem_edgeSet_iff]
+  exact Iff.symm nonempty_def
+
+ lemma IsPathGraph.setOf_isLeaf_eq (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
+    {x | P.IsLeaf x} = {hP.first, hP.last} := by
+  have ⟨hp, heq⟩ := hP.choose_spec
+  set p := hP.choose
+  change {x | P.IsLeaf x} = {p.first, p.last}
+  ext x
+  refine ⟨?_, ?_⟩
+  · simp
+    intro hx
+    exact hx.eq_first_or_eq_last_of_mem_path hp
+      (by rw [← WList.mem_vertexSet_iff, ← WList.toGraph_vertexSet, ← heq]; exact hx.mem)
+  simp
+  rw [heq, ← nonempty_iff_toGraph_edgeSet_nonempty] at hne
+  rintro (rfl|rfl)
+    <;> rw [heq]
+  · exact hp.first_isLeaf_toGraph hne
+  · exact hp.last_isLeaf_toGraph hne
+
+@[simp, grind =>]
+lemma IsPathGraph.isLeaf_iff (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
+    P.IsLeaf x ↔ x = hP.first ∨ x = hP.last := by
+  change x ∈ {x | P.IsLeaf x} ↔ x = hP.first ∨ x = hP.last
+  simp [hP.setOf_isLeaf_eq hne]
+
+@[simp, grind →]
+lemma IsPathGraph.isLeaf_first (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
+    P.IsLeaf hP.first :=
+  hP.isLeaf_iff hne |>.mpr (Or.inl rfl)
+
+@[simp, grind →]
+lemma IsPathGraph.isLeaf_last (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
+    P.IsLeaf hP.last :=
+  hP.isLeaf_iff hne |>.mpr (Or.inr rfl)
+
+noncomputable def IsPathGraph.firstEdge (hP : P.IsPathGraph) (hne : E(P).Nonempty) : β := by
+  refine WList.Nonempty.firstEdge hP.choose ?_
+  rw [hP.choose_spec.2, ← nonempty_iff_toGraph_edgeSet_nonempty] at hne
+  assumption
+
+noncomputable def IsPathGraph.lastEdge (hP : P.IsPathGraph) (hne : E(P).Nonempty) : β := by
+  refine WList.Nonempty.lastEdge hP.choose ?_
+  rw [hP.choose_spec.2, ← nonempty_iff_toGraph_edgeSet_nonempty] at hne
+  assumption
+
+lemma _root_.WList.reverse_inc {w : WList α β} (h : w.Inc e x) : w.reverse.Inc e x := by
+  obtain ⟨y, h⟩ := h
+  refine ⟨y, ?_⟩
+  rwa [isLink_reverse_iff]
+
+lemma _root_.WList.reverse_inc_iff {w : WList α β} : w.reverse.Inc e x ↔ w.Inc e x := by
+  refine ⟨?_, reverse_inc⟩
+  nth_rewrite 2 [← w.reverse_reverse]
+  exact reverse_inc
+
+lemma _root_.WList.Nonempty.inc_firstEdge_first {w : WList α β} (hne : w.Nonempty) :
+    w.Inc hne.firstEdge w.first := by
+  cases w with simp at hne ⊢
+
+lemma _root_.WList.Nonempty.inc_lastEdge_last {w : WList α β} (hne : w.Nonempty) :
+    w.Inc hne.lastEdge w.last := by
+  rw [← hne.firstEdge_reverse, ← w.reverse_first, ← reverse_inc_iff]
+  exact hne.reverse.inc_firstEdge_first
+
+lemma IsPathGraph.inc_firstEdge_first (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
+    P.Inc (hP.firstEdge hne) hP.first := by
+  rw [hP.choose_spec.2, ← nonempty_iff_toGraph_edgeSet_nonempty] at hne
+  set p := hP.choose
+  change P.Inc (hne.firstEdge) p.first
+  rw [show P = p.toGraph by exact hP.choose_spec.2, hP.choose_spec.1.isWalk.wellFormed.toGraph_inc]
+  exact hne.inc_firstEdge_first
+
+lemma IsPathGraph.inc_lastEdge_last (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
+    P.Inc (hP.lastEdge hne) hP.last := by
+  rw [hP.choose_spec.2, ← nonempty_iff_toGraph_edgeSet_nonempty] at hne
+  set p := hP.choose
+  change P.Inc (hne.lastEdge) p.last
+  rw [show P = p.toGraph by exact hP.choose_spec.2, hP.choose_spec.1.isWalk.wellFormed.toGraph_inc]
+  exact hne.inc_lastEdge_last
+
+lemma IsPathGraph.firstEdge_isLeafEdge (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
+    P.IsLeafEdge <| hP.firstEdge hne := by
+  sorry
+
+lemma IsPathGraph.setOf_isLeafEdge_eq (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
+    {e | P.IsLeafEdge e} = {hP.firstEdge hne, hP.lastEdge hne} := by
+  sorry
+
+lemma IsPathGraph.eDegree_first_le_one (hP : P.IsPathGraph) :
+    P.eDegree hP.first ≤ 1 := by
+  sorry
+
+@[simp, grind →]
+lemma IsPathGraph.eDegree_first_eq_one (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
+    P.eDegree hP.first = 1 := by
+  rw [eDegree_eq_one_iff]
+  exact hP.isLeaf_first hne
+
+@[simp, grind →]
+lemma IsPathGraph.eDegree_last_eq_one (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
+    P.eDegree hP.last = 1 := by
+  rw [eDegree_eq_one_iff]
+  exact hP.isLeaf_last hne
 
 -- probably want some generic "external/internal vxs/edges" for forests
 -- external vxs are just leaves
@@ -725,12 +904,291 @@ noncomputable def IsPathGraph.last {P : Graph α β} (hP : P.IsPathGraph) : α :
 -- external edges are edges for which at least one endpoint is a leaf
 -- internal edges are edges for which both endpoints are not leaves
 
-@[mk_iff]
-structure IsAugPath (G : Graph α β) (hM : G.IsMatching M) (P : Graph α β) : Prop where
-  subgraph : P ≤ G
+-- TODO: MOVE ALL LEAF LEMMAS
+
+@[simp, grind →]
+lemma IsPendant.edge_mem (h : G.IsPendant e x) : e ∈ E(G) :=
+  h.isNonloopAt.edge_mem
+
+@[simp, grind →]
+lemma IsPendant.vertex_mem (h : G.IsPendant e x) : x ∈ V(G) :=
+  h.isNonloopAt.vertex_mem
+
+@[simp, grind →]
+lemma IsPendant.isLeafEdge (h : G.IsPendant e x) : G.IsLeafEdge e :=
+  ⟨x, h⟩
+
+@[simp, grind →]
+lemma IsPendant.inc (h : G.IsPendant e x) : G.Inc e x :=
+  h.isNonloopAt.inc
+
+@[simp, grind →]
+lemma IsLeafEdge.edge_mem (he : G.IsLeafEdge e) : e ∈ E(G) := by
+  obtain ⟨x, h⟩ := he
+  exact h.edge_mem
+
+@[grind =>, simp]
+lemma not_isPendant_of_not_isLeafEdge (he : ¬ G.IsLeafEdge e) (x : α) : ¬ G.IsPendant e x := by
+  contrapose he
+  exact ⟨x, he⟩
+
+@[grind]
+def IsNonleafEdge (G : Graph α β) (e : β) :=
+    ∃ x y, ¬ G.IsPendant e x ∧ ¬ G.IsPendant e y ∧ G.IsLink e x y
+
+namespace IsNonleafEdge
+
+@[grind ., simp]
+lemma edge_mem (he : G.IsNonleafEdge e) : e ∈ E(G) := by
+  obtain ⟨_, _, _, _, h⟩ := he
+  exact h.edge_mem
+
+@[grind =>, simp]
+lemma not_isPendant (he : G.IsNonleafEdge e) (x : α) : ¬ G.IsPendant e x := by
+  intro bad
+  obtain ⟨y, z, hey, hez, heyz⟩ := he
+  obtain (rfl|rfl) := bad.inc.eq_or_eq_of_isLink heyz
+    <;> contradiction
+
+@[grind →, simp]
+lemma not_isLeafEdge (he : G.IsNonleafEdge e) : ¬ G.IsLeafEdge e := by
+  simp [IsLeafEdge]
+  exact he.not_isPendant
+
+end IsNonleafEdge
+
+@[grind →, simp]
+lemma IsLeafEdge.not_isNonleafEdge (h : G.IsLeafEdge e) : ¬ G.IsNonleafEdge e := by
+  contrapose h
+  exact h.not_isLeafEdge
+
+lemma isNonLeafEdge_of_not_isLeafEdge (he : e ∈ E(G)) (h : ¬ G.IsLeafEdge e) :
+    G.IsNonleafEdge e := by
+  rw [edge_mem_iff_exists_isLink] at he
+  obtain ⟨x, y, hexy⟩ := he
+  refine ⟨x, y, ?_, ?_, hexy⟩
+   <;> exact not_isPendant_of_not_isLeafEdge h _
+
+lemma isLeafEdge_of_not_isNonleafEdge (he : e ∈ E(G)) (h : ¬ G.IsNonleafEdge e) :
+    G.IsLeafEdge e := by
+  contrapose h
+  exact isNonLeafEdge_of_not_isLeafEdge he h
+
+lemma not_isNonleafEdge_iff_isLeafEdge (he : e ∈ E(G)) :
+    ¬ G.IsNonleafEdge e ↔ G.IsLeafEdge e :=
+  ⟨isLeafEdge_of_not_isNonleafEdge he, IsLeafEdge.not_isNonleafEdge⟩
+
+lemma not_isLeafEdge_iff_isNonleafEdge (he : e ∈ E(G)) :
+    ¬ G.IsLeafEdge e ↔ G.IsNonleafEdge e :=
+  ⟨isNonLeafEdge_of_not_isLeafEdge he, IsNonleafEdge.not_isLeafEdge⟩
+
+
+lemma IsPathGraph.isForest (hP : P.IsPathGraph) : P.IsForest := by
+  obtain ⟨p, hp⟩ := hP
+  rw [hp.2]
+  exact hp.1.toGraph_isForest
+
+lemma IsPathGraph.isTree (hP : P.IsPathGraph) : P.IsTree where
+  isForest := hP.isForest
+  connected := hP.connected
+
+lemma IsPathGraph.eq_first_or_last_of_eDegree_le_one (hP : P.IsPathGraph) (hxP : x ∈ V(P))
+    (hdeg : P.eDegree x ≤ 1) : x = hP.first ∨ x = hP.last := by
+  have hp := hP.choose_spec
+  set p := hP.choose
+  change x = p.first ∨ x = p.last
+  refine hp.1.isTrail.eq_first_or_last_of_eDegree_le_one ?_ hdeg
+  simp [hp.2, toGraph_vertexSet] at hxP
+  assumption
+
+lemma IsPathGraph.eq_first_or_last_of_eDegree_eq_one (hP : P.IsPathGraph) (hdeg : P.eDegree x = 1) :
+    x = hP.first ∨ x = hP.last := by
+  refine hP.eq_first_or_last_of_eDegree_le_one ?_ (le_of_eq hdeg)
+  rw [eDegree_eq_one_iff] at hdeg
+  exact hdeg.mem
+
+lemma IsPathGraph.degreePos (hP : P.IsPathGraph) (hne : E(P).Nonempty) : P.DegreePos := by
+  sorry
+
+lemma IsPathGraph.eDegree_eq_two (hP : P.IsPathGraph) (hxP : x ∈ V(P)) (hne_first : x ≠ hP.first)
+    (hne_last : x ≠ hP.last) : P.eDegree x = 2 := by
+  sorry
+
+lemma IsPathGraph.maxDegreeLE_two (hP : P.IsPathGraph) : P.MaxDegreeLE 2 := by
+  obtain (hempty|hne) := em' (E(P).Nonempty)
+  · sorry
+  rw [maxDegreeLE_iff']
+  intro x hxP
+  obtain (h|h) := em (x = hP.first ∨ x = hP.last)
+  · obtain (rfl|rfl) := h
+      <;> [rw [hP.isLeaf_first hne |>.eDegree] ; rw [hP.isLeaf_last hne |>.eDegree]]
+      <;> enat_to_nat <;> omega
+  simp at h
+  exact le_of_eq <| hP.eDegree_eq_two hxP h.1 h.2
+
+lemma IsPathGraph.eDegree_eq_one_or_two (hP : P.IsPathGraph) (hne : E(P).Nonempty)
+    (hxP : x ∈ V(P)) :
+    P.eDegree x = 1 ∨ P.eDegree x = 2 := by
+  sorry
+
+lemma IsPathGraph.eq_first_or_last_or_inner (hP : P.IsPathGraph) (hxP : x ∈ V(P)) :
+    x = hP.first ∨ x = hP.last ∨ P.eDegree x = 2 := by
+  obtain (h|h) := em (x = hP.first ∨ x = hP.last)
+  · grind
+  simp at h
+  right; right
+  exact hP.eDegree_eq_two hxP h.1 h.2
+
+structure IsMatching.IsAugPath (hM : G.IsMatching M) (P : Graph α β) : Prop where
+  -- there is some consideration here about whether to allow empty paths to be augmenting or not;
+  -- we've gone and arbitrarily decided to forbid it here in this definition,
+  -- but one could just as well allow it and stipulate non-emptiness in all relevant lemmas.
+  le : P ≤ G
   isPathGraph : P.IsPathGraph
-  -- all internal vx of P are matched by M
-  -- matches_internal : M ∩ E(P) = E(P) \ {P.firstEdge, P.lastEdg e}
+  nonempty : E(P).Nonempty
+  -- all internal vx of P are matched by M, by edges of P
+  match_nonleaf : ∀ ⦃x⦄, x ∈ V(P) → P.eDegree x = 2 → x ∈ V(P, M)
+  -- neither of the leaf vxs of P are matched by M
+  no_match_leaf : ∀ ⦃x⦄, P.eDegree x = 1 → x ∉ V(G, M)
+
+namespace IsMatching
+
+attribute [grind →, grind <=]
+    IsAugPath.le IsAugPath.isPathGraph IsAugPath.nonempty IsAugPath.match_nonleaf
+    IsAugPath.no_match_leaf
+
+variable {hM : G.IsMatching M}
+
+lemma IsAugPath.matched_vertexSet_eq (hP : hM.IsAugPath P) :
+    V(P, M) = {x ∈ V(P) | P.eDegree x = 2} := by
+  ext x
+  refine ⟨?_, ?_⟩
+  · intro hx
+    refine ⟨by grind, ?_⟩
+    by_contra! bad
+    replace bad : P.eDegree x = 1 := by
+      have := hP.isPathGraph.eDegree_eq_one_or_two hP.nonempty (incVertexSet_subset _ _ hx)
+      grind only
+    exact hP.no_match_leaf bad (incVertexSet_mono hP.le _ hx)
+  grind
+
+lemma IsAugPath.diff_matching_isMatching (hP : hM.IsAugPath P) :
+    P.IsMatching (E(P) \ M) where
+  subset := by
+    grw [diff_subset]
+  disjoint e f he hf hne := by
+    have _ : P.Simple := hP.isPathGraph.simple
+    rw [disjoint_left]
+    intro x hxe hxf
+    change e ∈ E(P, x) at hxe
+    change f ∈ E(P, x) at hxf
+    have hxP : x ∈ V(P) := by
+      refine Inc.vertex_mem (e := e) hxe
+    have deg : P.eDegree x = 2 := by
+      refine (hP.isPathGraph.maxDegreeLE_two x).antisymm ?_
+      rw [eDegree_eq_encard_inc, Nat.cast_ofNat, two_le_encard_iff_nontrivial]
+      refine ⟨e, hxe, f, hxf, hne⟩
+    have h_incEdges : E(P, x) = {e, f} := by
+      symm
+      rw [←Nat.cast_ofNat, eDegree_eq_encard_inc] at deg
+      have fin : E(P, x).Finite := by
+        exact finite_of_encard_le_coe (le_of_eq deg)
+      refine eq_of_subset_of_ncard_le ?_ ?_ ‹_›
+      · rintro e' (rfl|rfl) <;> assumption
+      apply congr_arg ENat.toNat at deg
+      simp [← ncard_def] at deg
+      grw [deg, ncard_pair hne]
+    have bad := hP.match_nonleaf hxP deg
+    simp at bad
+    obtain ⟨e', he'M, he'⟩ := bad
+    change e' ∈ E(P, x) at he'
+    simp [h_incEdges] at he'
+    obtain (rfl|rfl) := he'
+      <;> [exact he.2 ‹_›; exact hf.2 ‹_›]
+
+--
+lemma IsAugPath.vertexSet_disjoint (hP : hM.IsAugPath P) : Disjoint V(P) V(G, M \ E(P)) := by
+  rw [disjoint_left]
+  intro x hxP hxGM'
+  have hxGM : x ∈ V(G, M) := by
+    simp at hxGM'
+    obtain ⟨e, he⟩ := hxGM'
+    refine ⟨e, he.1.1, he.2⟩
+  obtain (rfl|rfl|h) := hP.isPathGraph.eq_first_or_last_or_inner hxP
+  · refine hP.no_match_leaf ?_ hxGM
+    exact hP.isPathGraph.isLeaf_first hP.nonempty |>.eDegree
+  · refine hP.no_match_leaf ?_ hxGM
+    exact hP.isPathGraph.isLeaf_last hP.nonempty |>.eDegree
+  have M_diff_matching : G.IsMatching (M \ E(P)) := by
+    sorry
+  have P_matching : P.IsMatching M := by
+    sorry
+  have hxPM := hP.match_nonleaf hxP h
+  have ⟨e, he, e_unique⟩ := hM.existsUnique_covering_edge hxGM
+  obtain ⟨e', he', -⟩ := M_diff_matching.existsUnique_covering_edge hxGM'
+  obtain ⟨f, hf, -⟩ := P_matching.existsUnique_covering_edge hxPM
+  simp at e_unique he he' hf
+  have : e' = f := by
+    rw [e_unique _ he'.1.1 he'.2, e_unique _ hf.1 (hf.2.of_le hP.le)]
+  rw [this] at he'
+  exact he'.1.2 hf.2.edge_mem
+
+/-- Given a matching M and an augmenting path P for M, we can get back a larger matching --/
+lemma IsAugPath.symmDiff_isMatching (hP : hM.IsAugPath P) : G.IsMatching (M ∆ E(P)) := by
+  have disj : P.StronglyDisjoint (Subgraph.ofEdge G (M \ E(P))) := by
+    refine ⟨?_, ?_⟩
+    · simp
+      exact hP.vertexSet_disjoint
+    rw [disjoint_left]
+    simp
+    grind only
+  have P_matching : P.IsMatching (E(P) \ M) := hP.diff_matching_isMatching
+  set G' := Subgraph.ofEdge G (M \ E(P))
+  have G'_matching : G'.val.IsMatching (M \ E(P)) := by
+    have matching : G.IsMatching (M \ E(P)) :=
+      hM.anti_right diff_subset
+    refine matching.anti_left G'.le ?_
+    simp [G']
+    grw [diff_subset, hM.subset]
+  have := P_matching.union G'_matching disj
+  rw [symmDiff_comm, Set.symmDiff_def]
+  refine this.of_le ?_
+  refine Graph.union_le hP.le G'.le
+
+lemma IsAugPath.diff_matching_vertexSet (hP : hM.IsAugPath P) : V(P, E(P) \ M) = V(P) := by
+  sorry
+
+lemma IsAugPath.diff_matching_encard (hP : hM.IsAugPath P) :
+    (E(P) \ M).encard = (E(P) ∩ M).encard + 1 := by
+  -- (E(P) \ M) matches all of V(P)
+  -- so 2 * |E(P) \ M| = |V(P)|
+  -- meanwhile, (E(P) ∩ M) matches V(P) \ {P.first, P.last}
+  -- so 2 * |E(P) ∩ M| = |V(P) \ {P.first, P.last}| = |V(P)| - 2
+  -- so |E(P) \ M| = 1 + |E(P) ∩ M|
+  sorry
+
+end IsMatching
+
+-- for finite graphs then (or more generally, graphs with finite matching number),
+-- there must not be an augmenting path whenever we have a max matching
+lemma IsMaxMatching.not_isAugPath (hM : G.IsMaxMatching M) (P : Graph α β) : ¬ hM.IsAugPath P := by
+  sorry
+
+/-
+ sketch of other direction:
+ first, for matchings M, M' on G, let G' := Subgraph.ofEdges G (M ∆ M')
+ then, components of G' must be one of:
+ * isolated vertex
+ * even cycle with edges alternating b/n M and M'
+ * paths with edges alternating b/n M and M'
+
+ showing that the components are cycles / paths shouldnt be hard; more attention needs to be paid
+ perhaps to "edges alternating b/n M and M'"
+
+ now, suppose M is not a max matching for G. then there exists a matching M' with |M'| > |M|.
+ so there must be a component which is a path and has more edges from M' than from M;
+ thus this component must be an augmenting path.
+-/
 
 /-! ### Structure of graph from maximal matching -/
 
