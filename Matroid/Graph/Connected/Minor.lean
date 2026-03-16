@@ -15,8 +15,8 @@ lemma ConnBetween.map (f : α → α') (h : G.ConnBetween x y) :
 
 lemma Preconnected.map (f : α → α') (h : G.Preconnected) : (f ''ᴳ G).Preconnected := by
   intro x' y' hx' hy'
-  obtain ⟨x, hx, rfl⟩ := by simpa [map_vertexSet] using hx'
-  obtain ⟨y, hy, rfl⟩ := by simpa [map_vertexSet] using hy'
+  obtain ⟨x, hx, rfl⟩ := by simpa only [map_vertexSet, mem_image] using hx'
+  obtain ⟨y, hy, rfl⟩ := by simpa only [map_vertexSet, mem_image] using hy'
   exact (h _ _ hx hy).map f
 
 @[simp]
@@ -41,7 +41,8 @@ lemma IsSep.of_map {f : α → α'} {S : Set α'} (hS : (f ''ᴳ G).IsSep S) :
 lemma IsSep.of_contract (hφ : (G ↾ C).connPartition.IsRepFun φ) (hS : (G /[φ, C]).IsSep S) :
     G.IsSep (φ ⁻¹' S) where
   subset_vx v hvS := by
-    obtain ⟨x, hx, hvx⟩ := by simpa using hS.subset_vx (mem_preimage.mp hvS)
+    obtain ⟨x, hx, hvx⟩ := by
+      simpa only [contract_vertexSet, mem_image] using hS.subset_vx (mem_preimage.mp hvS)
     rw [hφ.apply_eq_apply_iff_rel (by simpa)] at hvx
     simpa using hvx.right_mem
   not_connected hcon := by
@@ -176,7 +177,8 @@ theorem exists_contract_connGE_three [G.Finite] (hG : G.ConnGE 3) (hV : 5 ≤ V(
   -- `z ≠ w` since `z ∉ C` and `w ∈ C`
   have hzwne : z ≠ w := by
     rintro rfl
-    obtain ⟨-, -, -, hzC⟩ := by simpa [subset_diff] using vertexSet_mono hC.le
+    obtain ⟨-, -, -, hzC⟩ := by simpa only [vertexDelete_vertexSet, subset_diff,
+      disjoint_insert_right, disjoint_singleton_right] using vertexSet_mono hC.le
     exact hzC hwC
 
   -- 2. Every edge is bad. Hence, there is a 3-sep that contains `w` and `z`.
@@ -200,7 +202,8 @@ theorem exists_contract_connGE_three [G.Finite] (hG : G.ConnGE 3) (hV : 5 ≤ V(
     ← ne_eq]
 
   have hor : x ∉ ({w, z, w'} : Set α) ∨ y ∉ ({w, z, w'} : Set α) := by
-    obtain ⟨-, hxC, hyC, hzC⟩ := by simpa [subset_diff] using vertexSet_mono hC.le
+    obtain ⟨-, hxC, hyC, hzC⟩ := by simpa only [vertexDelete_vertexSet, subset_diff,
+      disjoint_insert_right, disjoint_singleton_right] using vertexSet_mono hC.le
     by_contra! h
     simp only [mem_insert_iff, mem_singleton_iff] at h
     obtain ⟨(rfl | rfl | rfl), (rfl | rfl | rfl)⟩ := h <;> tauto

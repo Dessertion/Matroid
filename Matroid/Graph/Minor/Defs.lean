@@ -24,13 +24,13 @@ lemma ConnBetween.eq_or_isLink_of_edgeSet_singleton (h : G.ConnBetween x y) (hE 
     simp_all only [cons_isPath_iff, nil_isPath_iff, WList.nil_first, WList.mem_nil_iff,
       WList.first_cons, WList.last_cons, WList.nil_last, false_or]
     obtain ⟨hlink, hw, hxw⟩ := hw
-    obtain rfl := by simpa [hE] using hlink.edge_mem
+    obtain rfl := by simpa only [hE, mem_singleton_iff] using hlink.edge_mem
     exact hlink
   | .cons x e (.cons y f w) =>
     simp_all only [cons_isPath_iff, WList.first_cons, WList.mem_cons_iff, not_or, WList.last_cons]
     obtain ⟨hxy, ⟨hywf, hw, hyw⟩, hne, hxw⟩ := hw
-    obtain rfl := by simpa [hE] using hywf.edge_mem
-    obtain rfl := by simpa [hE] using hxy.edge_mem
+    obtain rfl := by simpa only [hE, mem_singleton_iff] using hywf.edge_mem
+    obtain rfl := by simpa only [hE, mem_singleton_iff] using hxy.edge_mem
     obtain rfl := hxy.left_unique hywf.symm
     simp at hxw
 

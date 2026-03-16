@@ -484,7 +484,7 @@ lemma Isolated.eq_last_of_mem (hisol : G.Isolated x) {w} (hw : G.IsWalk w) (hx :
     exact heq.symm
   exfalso
   obtain ⟨u, e, w', heq⟩ := hw'.exists_cons
-  obtain rfl := by simpa [heq] using w.suffixFromVertex_first hx
+  obtain rfl := by simpa only [heq, first_cons] using w.suffixFromVertex_first hx
   have := heq ▸ (hw.suffix <| w.suffixFromVertex_isSuffix u)
   simp only [cons_isWalk_iff] at this
   exact hisol.not_isLink this.1
@@ -498,7 +498,7 @@ lemma Isolated.isWalk_nil_of_mem (hisol : G.Isolated x) (hw : G.IsWalk w) (hx : 
   match w with
   | .nil u => simp
   | .cons u e w =>
-    obtain rfl := by simpa using hisol.eq_first_of_mem hw hx
+    obtain rfl := by simpa only [first_cons] using hisol.eq_first_of_mem hw hx
     simp only [cons_isWalk_iff] at hw
     exact (hisol.not_isLink hw.1).elim
 
@@ -541,7 +541,7 @@ lemma isWalk_induce_iff : G[X].IsWalk w ↔ (∃ x ∈ X \ V(G), w = nil x) ∨ 
   · rintro (⟨x, hxX, rfl⟩ | ⟨hw, hwX⟩)
     · simp [hxX.1]
     exact hw.isWalk_isInducedSubgraph hile (by simp [hwX, hw.vertexSet_subset]) |>.of_le hileX.le
-  have hwX := by simpa using h.vertexSet_subset
+  have hwX := by simpa only [induce_vertexSet] using h.vertexSet_subset
   refine (em (Disjoint V(w) (X \ V(G))) |>.symm).imp (fun h1 ↦ ?_) (fun hw ↦ ?_)
   · obtain ⟨x, hxw, hxX⟩ := not_disjoint_iff.mp h1
     exact ⟨x, hxX, (G.diff_subset_isolatedSet_induce X hxX).eq_nil_of_mem h hxw⟩

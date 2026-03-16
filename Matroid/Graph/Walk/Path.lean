@@ -286,8 +286,8 @@ lemma IsPath.eq_firstEdge_of_isLink_first (hP : G.IsPath P) (heP : e ∈ P.edge)
 
 lemma IsPath.first_eq_of_isLink_mem (hP : G.IsPath (cons x f w)) (heP : e ∈ (cons x f w).edge)
     (hl : G.IsLink e x y) : e = f ∧ w.first = y := by
-  obtain ⟨hl', hw, hxw⟩ := by simpa using hP
-  obtain rfl | hew := by simpa using heP
+  obtain ⟨hl', hw, hxw⟩ := by simpa only [cons_isPath_iff] using hP
+  obtain rfl | hew := by simpa only [cons_edge, List.mem_cons] using heP
   · exact ⟨rfl, hP.isTrail.first_eq_of_isLink hl⟩
   exact hxw (hw.isWalk.isLink_iff_isLink_of_mem hew |>.mpr hl |>.left_mem) |>.elim
 

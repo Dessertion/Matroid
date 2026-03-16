@@ -388,13 +388,13 @@ lemma simplify_edgeSet (hφ : G.parallelClasses.IsRepFun φ) :
   refine ⟨?_, ?_⟩
   · rintro ⟨⟨f, rfl, hf⟩, h⟩
     use f, rfl, hf
-    have hfφ := by simpa [hf] using hφ.rel_apply (a := f)
+    have hfφ : G.parallelClasses f (φ f):= by simpa [hf] using hφ.rel_apply (a := f)
     simp only [parallelClasses, Partition.rel_ofRel_eq] at hfφ
     simp_rw [IsLoopAt, hfφ.isLink_eq]
     exact h
   rintro ⟨f, rfl, hf, h⟩
   use ⟨f, rfl, hf⟩
-  have hfφ := by simpa [hf] using hφ.rel_apply (a := f)
+  have hfφ : G.parallelClasses f (φ f) := by simpa [hf] using hφ.rel_apply (a := f)
   simp only [parallelClasses, Partition.rel_ofRel_eq] at hfφ
   simp_rw [IsLoopAt, ← hfφ.isLink_eq]
   exact h

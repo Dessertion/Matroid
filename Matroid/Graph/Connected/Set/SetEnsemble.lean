@@ -268,7 +268,7 @@ lemma extend_right_paths_encard (A : G.SetEnsemble) (hAST : A.between S T)
   have : Finite ↑(A.paths \ {A.of_vertex P.first hf}) :=
     Finite.Set.finite_diff A.paths {A.of_vertex P.first hf}
   have hAcard : 0 < A.paths.encard := by
-    obtain ⟨Q, hQ, -⟩ := by simpa using hf
+    obtain ⟨Q, hQ, -⟩ := by simpa only [mem_vertexSet_iff] using hf
     exact Nonempty.encard_pos ⟨Q, hQ⟩
   have hPfirstQ : A.of_vertex P.first hf ++ P ∉ A.paths \ {A.of_vertex P.first hf} := by
     simp only [mem_diff, mem_singleton_iff, not_and, not_not]

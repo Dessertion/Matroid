@@ -670,14 +670,14 @@ lemma IsClosedSubgraph.of_edgeDelete_iff (hclF : H ≤c G ＼ F) : H ≤c G ↔ 
 lemma IsClosedSubgraph.edgeRestrict (h : H ≤c G) (F : Set β) : H ↾ F ≤c G ↾ F where
   le := by grw [h.le]
   closed e x hex hx := by
-    obtain ⟨heG, heF⟩ := by simpa using hex.edge_mem
+    obtain ⟨heG, heF⟩ := by simpa only [edgeRestrict_edgeSet, mem_inter_iff] using hex.edge_mem
     exact ⟨h.closed (hex.of_le edgeRestrict_le) hx, heF⟩
 
 @[gcongr, grind =>]
 lemma IsClosedSubgraph.edgeDelete (h : H ≤c G) (F : Set β) : H ＼ F ≤c G ＼ F where
   le := by grw [h.le]
   closed e x hex hx := by
-    obtain ⟨heG, heF⟩ := by simpa using hex.edge_mem
+    obtain ⟨heG, heF⟩ := by simpa only [edgeDelete_edgeSet, mem_diff] using hex.edge_mem
     exact ⟨h.closed (hex.of_le edgeDelete_le) hx, heF⟩
 
 end Graph

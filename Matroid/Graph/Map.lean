@@ -206,13 +206,13 @@ lemma exists_map_eq_of_le_map {G} (h : G ≤ f ''ᴳ H) : ∃ H' ≤ H, f ''ᴳ 
     refine ⟨?_, fun hx ↦ ?_⟩
     · rintro ⟨y, ⟨hyH, hy⟩, rfl⟩
       exact hy
-    obtain ⟨y, hy, rfl⟩ := by simpa using vertexSet_mono h hx
+    obtain ⟨y, hy, rfl⟩ := by simpa only [map_vertexSet, mem_image] using vertexSet_mono h hx
     use y
   simp only [map_edgeSet, edgeRestrict_edgeSet, inter_eq_right, induce_edgeSet, mem_inter_iff,
     mem_preimage]
   intro e he
   obtain ⟨x', y', hxy'⟩ := exists_isLink_of_mem_edgeSet <| edgeSet_mono h he
-  obtain ⟨x, y, hxy, rfl, rfl⟩ := by simpa using hxy'
+  obtain ⟨x, y, hxy, rfl, rfl⟩ := by simpa only [map_isLink] using hxy'
   have hxy'' := hxy'.of_le_of_mem h he
   use x, y, hxy, ⟨hxy.left_mem, hxy''.left_mem⟩, hxy.right_mem, hxy''.right_mem
 
@@ -266,7 +266,7 @@ graph, then `e` is a loop in `((φ ''ᴳ G) - S)`. -/
 lemma exists_isLoopAt_map_vertexDelete_of_mem (hφ : G.IsContractClosed φ C) (S : Set α')
     (he : e ∈ C ∩ E((φ ''ᴳ G) - S)) : ∃ x, ((φ ''ᴳ G) - S).IsLoopAt e x := by
   obtain ⟨heC, heE⟩ := he
-  have heG : e ∈ E(G) := by simpa using (edgeSet_mono vertexDelete_le) heE
+  have heG : e ∈ E(G) := by simpa only [map_edgeSet] using (edgeSet_mono vertexDelete_le) heE
   obtain ⟨u, v, huv⟩ := G.exists_isLink_of_mem_edgeSet heG
   have hloop : (φ ''ᴳ G).IsLoopAt e (φ u) := hφ.isLoopAt_map_of_mem heC huv
   have huS : (φ u) ∉ S := by

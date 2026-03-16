@@ -87,7 +87,7 @@ lemma Connected.le_or_le_compl (h : H.Connected) (hle : H ≤ G) (hK : K ≤c G)
   obtain hc | hc := hK.isCompOf_of_isCompOf_compl hG'G
   · exact .inl (hHG'.trans hc.le)
   refine .inr <| le_vertexDelete_iff.2 ⟨hle, ?_⟩
-  obtain ⟨hG'G, hdj : Disjoint V(G') V(K)⟩ := by simpa using hc.le
+  obtain ⟨hG'G, hdj⟩ := by simpa only [le_vertexDelete_iff] using hc.le
   exact hdj.mono_left <| vertexSet_mono hHG'
 
 lemma Connected.le_of_nonempty_inter (h : H.Connected) (hle : H ≤ G) (hK : K ≤c G)
@@ -136,7 +136,7 @@ lemma connected_bouquet (v : α) (F : Set β) : (bouquet v F).Connected := by
   refine fun H hle hne ↦ ⟨?_, by simp⟩
   simp only [bouquet_vertexSet, singleton_subset_iff]
   obtain ⟨x, hx⟩ := hne
-  obtain rfl := by simpa using vertexSet_mono hle.le hx
+  obtain rfl := by simpa only [bouquet_vertexSet, mem_singleton_iff] using vertexSet_mono hle.le hx
   exact hx
 
 @[simp]
@@ -660,7 +660,7 @@ lemma IsPath.isPath_of_union_of_subsingleton_inter (hP : (G ∪ H).IsPath P)
   | nil u => simpa [hf]
   | cons u e w ih =>
     obtain ⟨heuwf, hw, huw⟩ := cons_isPath_iff.mp hP
-    obtain heG | heH := by simpa using heuwf.edge_mem
+    obtain heG | heH := by simpa only [union_edgeSet, mem_union] using heuwf.edge_mem
     · replace heuwf : G.IsLink e u w.first := heuwf.of_le_of_mem (Graph.left_le_union ..) heG
       simp [ih heuwf.right_mem hl hw, heuwf, huw]
     replace heH : H.IsLink e u w.first := heuwf.of_le_of_mem (hc.right_le_union ..) heH
@@ -710,14 +710,14 @@ lemma IsCyclicWalk.isCyclicWalk_or_isCyclicWalk_of_union_of_subsingleton_inter
     exact .inr <| hH.of_le <| by simp
   obtain ⟨u, e, w⟩ := hC.nonempty
   wlog heG : e ∈ E(G) generalizing G H with aux
-  · obtain heH := by simpa using hC.isWalk.edge_mem_of_mem (e := e) (by simp) |>.resolve_left heG
+  · obtain heH := by simpa only using hC.isWalk.edge_mem_of_mem (by simp) |>.resolve_left heG
     rw [inter_comm] at hi
     rw [hc.union_comm] at hC
     exact aux hi hc.symm hC heH |>.symm
   left
-  obtain rfl := by simpa using hC.isClosed
+  obtain rfl := by simpa only [cons_isClosed_iff] using hC.isClosed
   have he := cons_isWalk_iff.mp hC.isWalk |>.1
-  have hw := by simpa using hC.tail_isPath
+  have hw := by simpa only [tail_cons] using hC.tail_isPath
   refine hC.isCycle_of_le (Graph.left_le_union ..) ?_
   replace he : G.IsLink e w.last w.first := he.of_le_of_mem (Graph.left_le_union ..) heG
   replace hw : G.IsPath w := hw.isPath_of_union_of_subsingleton_inter hi he.right_mem he.left_mem

@@ -404,7 +404,7 @@ lemma DInc.exists_isSuffix {w} (h : w.DInc e x y) :
   match w with
   | .nil u => simp at h
   | .cons u e w =>
-    obtain ⟨rfl, rfl, rfl⟩ | h := by simpa using h
+    obtain ⟨rfl, rfl, rfl⟩ | h := by simpa only [dInc_cons_iff] using h
     · use w, refl _
     obtain ⟨W, hW, rfl⟩ := h.exists_isSuffix
     use W, hW.trans <| w.isSuffix_cons_self e u
@@ -432,7 +432,7 @@ lemma IsInfix.infix (h : w₁.IsInfix w₂) : w₁.vertex <:+: w₂.vertex := by
   cases hwR : wR.vertex with
   | nil => exact (wR.vertex_ne_nil hwR).elim
   | cons head tail =>
-    obtain rfl := by simpa [← wR.vertex_head, hwR, head_cons] using hR
+    obtain rfl := by simpa only [← wR.vertex_head, hwR, head_cons] using hR
     rw [← w₁.vertex_getLast, append_cons, dropLast_concat_getLast]
     simp
 
@@ -690,7 +690,8 @@ lemma isSublist_of_mem {L : List (WList α β)} {w l : WList α β} (h : w.Decom
   match L with
   | [] => simp at hl
   | l' :: L' =>
-    obtain rfl | hl := (by simpa using hl) <;> have := by simpa using h.head_isPrefix
+    obtain rfl | hl := (by simpa using hl) <;> have := by
+      simpa only [head_cons] using h.head_isPrefix
     · exact this.isSublist
     obtain ⟨w', hw', rfl⟩ := this.exists_eq_append; clear this
     exact (h.append_cons (ne_nil_of_mem hl) |>.isSublist_of_mem hl).trans
@@ -719,7 +720,7 @@ lemma disjoint_of_edge_nodup {w : WList α β} {L : List (WList α β)} (h : w.D
   | [l] => simp
   | l₁ :: l₂ :: L =>
     rw [pairwise_cons]
-    obtain hprefix := by simpa using h.head_isPrefix
+    obtain hprefix := by simpa only [head_cons] using h.head_isPrefix
     obtain ⟨w', hw', rfl⟩ := hprefix.exists_eq_append
     have h' := h.append_cons (by simp)
     have hnd := by simpa only [append_edge, nodup_append] using hw

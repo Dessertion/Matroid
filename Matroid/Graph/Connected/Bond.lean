@@ -302,7 +302,7 @@ lemma IsPath.eq_of_isBridge_isLink (hP : G.IsPath P) (he : G.IsBridge e)
   match P with
   | nil u => simp at heP
   | cons u f w =>
-    obtain ⟨hl', hw, huw⟩ := by simpa using hP
+    obtain ⟨hl', hw, huw⟩ := by simpa only [cons_isPath_iff] using hP
     simp only [first_cons, last_cons, IsLink.walk, cons.injEq, true_and] at hl ⊢
     obtain ⟨rfl, heq⟩ := hP.first_eq_of_isLink_mem heP hl
     grind [hw.first_eq_last_iff.mp heq |>.eq_nil_last]
@@ -417,7 +417,7 @@ lemma isBond_of_conn (hS : S ⊆ V(G)) (hScon : G[S].Preconnected) (hS'con : (G 
   obtain ⟨huS, hvS⟩ | h2 := em (u ∉ S ∧ v ∉ S)
   · exact hS'con u v (by simp [huS, huv.left_mem]) (by simp [hvS, huv.right_mem]) |>.mono hS'leF
   wlog huS : u ∈ S
-  · have h3 := by simpa using h2
+  · have h3 := by simpa only [not_and, not_not] using h2
     rw [and_comm] at h1 h2
     exact this hScon hS'con F hF e he heF v u huv.symm hSleF hS'leF h1 h2 (h3 huS) |>.symm
   simp only [huS, true_and] at h1
@@ -527,7 +527,7 @@ lemma IsEdgeCut.disjoint_union_isBond {F} (hfin : F.Finite) (hF : G.IsEdgeCut F)
   use insert B S, ?_, by simp [hUS, hBF.subset], by simpa [hB]
   refine hSdj.insert_of_notMem ?_ fun B' hB'S ↦ hdj.mono_right <| subset_sUnion_of_mem hB'S
   rintro hBS
-  obtain rfl := by simpa using hdj.mono_right <| subset_sUnion_of_mem hBS
+  obtain rfl : B = ∅ := by simpa using hdj.mono_right <| subset_sUnion_of_mem hBS
   simpa using hB.prop.2
 termination_by F.encard
 

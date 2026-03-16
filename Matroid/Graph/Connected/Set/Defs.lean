@@ -103,7 +103,8 @@ lemma ConnBetween.neighbor_setConnected (h : G.ConnBetween s t) (hne : s ≠ t)
     (hadj : ¬ G.Adj s t) : (G - ({s, t} : Set α)).SetConnected (N(G, s) \ {s}) (N(G, t) \ {t}) := by
   obtain ⟨w, hw, rfl, rfl⟩ := h.exists_isPath
   obtain ⟨x, e, w', f, y, rfl⟩ := (hw.isWalk.nontrivial_of_ne_not_adj hne hadj).exists_cons_concat
-  obtain ⟨he, ⟨hw', hf, hyw'⟩, hxw', hxy⟩ := by simpa using hw
+  obtain ⟨he, ⟨hw', hf, hyw'⟩, hxw', hxy⟩ := by simpa only [cons_isPath_iff, concat_first,
+    concat_isPath_iff, mem_concat, not_or] using hw
   simp only [first_cons, last_cons, concat_last]
   use w'.first, ⟨⟨e, he⟩, (hxw' <| · ▸ first_mem)⟩, w'.last, ⟨⟨f, hf.symm⟩, (hyw' <| · ▸ last_mem)⟩,
     w', by simp [hw'.isWalk, hxw', hyw']
@@ -124,7 +125,7 @@ lemma left_isSetCut (G : Graph α β) (S T : Set α) : G.IsSetCut S T (V(G) ∩ 
   ST_disconnects := by
     simp only [SetConnected, vertexDelete_vertexSet_inter, not_exists, not_and]
     rintro s hs t ht h
-    have := by simpa using h.left_mem
+    have := by simpa only [vertexDelete_vertexSet, mem_diff] using h.left_mem
     exact this.2 hs
 
 lemma right_isSetCut (G : Graph α β) (S T : Set α) : G.IsSetCut S T (V(G) ∩ T) where
@@ -132,7 +133,7 @@ lemma right_isSetCut (G : Graph α β) (S T : Set α) : G.IsSetCut S T (V(G) ∩
   ST_disconnects := by
     simp only [SetConnected, vertexDelete_vertexSet_inter, not_exists, not_and]
     rintro s hs t ht h
-    have := by simpa using h.right_mem
+    have := by simpa only [vertexDelete_vertexSet, mem_diff] using h.right_mem
     exact this.2 ht
 
 @[symm]
@@ -271,7 +272,7 @@ lemma IsSetCut.subset_of_self (hC : G.IsSetCut S S U) : V(G) ∩ S ⊆ U := by
 lemma isSetCut_self_iff (hU : U ⊆ V(G)) : G.IsSetCut S S U ↔ V(G) ∩ S ⊆ U := by
   refine ⟨fun h => h.subset_of_self, fun h => ⟨hU, ?_⟩⟩
   rintro ⟨s, hsS, t, htS, hcon⟩
-  obtain ⟨hs, hsU⟩ := by simpa using hcon.left_mem
+  obtain ⟨hs, hsU⟩ := by simpa only [vertexDelete_vertexSet, mem_diff] using hcon.left_mem
   exact hsU <| h ⟨hs, hsS⟩
 
 lemma IsSepBetween.isSetCut (hC : G.IsSepBetween s t C) :
@@ -595,13 +596,13 @@ lemma SetConnGE.exists_isPathFrom (h : G.SetConnGE S T n) (hn : n ≠ 0) :
 lemma SetConnGE.vertexDelete (h : G.SetConnGE S T n) (X : Set α) :
     (G - X).SetConnGE S T (n - (X ∩ V(G)).encard).toNat := by
   intro C hC
-  have := by simpa using h (hC.of_vertexDelete)
+  have := by simpa only using h (hC.of_vertexDelete)
   exact (ENat.coe_toNat_le_self _).trans <| tsub_le_iff_left.mpr <| this.trans <| encard_union_le ..
 
 lemma SetConnGE.vertexDelete' (h : G.SetConnGE S T n) (X : Set α) :
     (G - X).SetConnGE (S \ X) (T \ X) (n - (X ∩ V(G)).encard).toNat := by
   intro C hC
-  have := by simpa using h ((hC.of_vertexDelete').subset (by simp) (by simp))
+  have := by simpa only using h ((hC.of_vertexDelete').subset (by simp) (by simp))
   exact (ENat.coe_toNat_le_self _).trans <| tsub_le_iff_left.mpr <| this.trans <| encard_union_le ..
 
 lemma SetConnGE.subset (h : G.SetConnGE S T n) (hS : S ⊆ S') (hT : T ⊆ T') : G.SetConnGE S' T' n :=

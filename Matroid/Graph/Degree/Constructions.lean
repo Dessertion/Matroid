@@ -211,8 +211,8 @@ lemma IsCyclicWalk.toGraph_regular (hC : G.IsCyclicWalk C) : C.toGraph.Regular 2
   obtain ⟨P, u, e, f, huP, hPf, hef, rfl⟩ := hC.exists_isPath' hCnt
   have huP' := cons_isPath_iff.1 huP
   have hPu' := concat_isPath_iff.1 hPf
-  obtain ⟨heP : e ∉ P.edge, -⟩ := by simpa using huP.edge_nodup
-  obtain ⟨hfP : f ∉ P.edge, -⟩ := by simpa using hPf.reverse.edge_nodup
+  obtain ⟨heP, -⟩ := by simpa only [cons_edge, List.nodup_cons] using huP.edge_nodup
+  obtain ⟨hfP, -⟩ : f ∉ P.edge ∧ P.edge.Nodup := by simpa using hPf.reverse.edge_nodup
   have hnde : e ∉ P.edge ∧ P.edge.Nodup := by simpa using huP.edge_nodup
   rw [toGraph_cons, union_degree_eq, toGraph_concat, union_degree_eq, concat_first]
   rotate_left; simpa; simpa [hef]

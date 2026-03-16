@@ -360,7 +360,7 @@ lemma nil_iff_edge_nil : w.Nil ↔ w.edge = [] := by
 lemma Nonempty.first_ne_last_of_nodup (hne : w.Nonempty) (hv : w.vertex.Nodup) :
     w.first ≠ w.last := by
   obtain ⟨x, e, w, rfl⟩ := hne.exists_cons
-  obtain ⟨hxw, hh⟩ := by simpa using hv
+  obtain ⟨hxw, hh⟩ := by simpa only [cons_vertex, nodup_cons, mem_vertex] using hv
   simp only [first_cons, last_cons, ne_eq]
   contrapose! hxw
   exact hxw ▸ last_mem
@@ -396,7 +396,8 @@ lemma Nontrivial.first_ne_second_of_nodup (hnt : w.Nontrivial) (hv : w.vertex.No
 lemma Nontrivial.second_ne_last_of_nodup (hnt : w.Nontrivial) (hv : w.vertex.Nodup) :
     w.second ≠ w.last := by
   obtain ⟨u, e, v, f, w⟩ := hnt
-  obtain ⟨hxw, hh⟩ := by simpa using hv
+  obtain ⟨hxw, hh⟩ := by
+    simpa only [cons_vertex, nodup_cons, mem_cons, mem_vertex, not_or] using hv
   simp only [second_cons, first_cons, last_cons, ne_eq]
   rintro rfl
   exact hh.1 last_mem

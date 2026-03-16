@@ -61,7 +61,7 @@ lemma nonempty_isTrail_finite (G : Graph α β) [G.EdgeFinite] :
     ⟨P.1.edge.attachWith _ (fun _ ↦ P.2.2.isWalk.edge_mem_of_mem), by simp [P.2.2.edge_nodup]⟩⟩
   case incVertexSet =>
     obtain ⟨v, e, w, hp⟩ := P.2.1.exists_cons
-    obtain ⟨hl, hw⟩ := by simpa [hp] using P.2.2.isWalk
+    obtain ⟨hl, hw⟩ : G.IsLink e v w.first ∧ G.IsWalk w := by simpa [hp] using P.2.2.isWalk
     exact hp ▸ ⟨e, hl.edge_mem, hl.inc_left⟩
   change Finite {P // P.Nonempty ∧ G.IsTrail P}
   refine Finite.of_injective f fun ⟨P, hP⟩ ⟨P', hP'⟩ hPP' ↦ ?_

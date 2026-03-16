@@ -181,7 +181,8 @@ lemma nonempty_of_mem_breakAt_aux_tail (w : WList α β) (P : α → Prop) [Deci
   | cons x e w =>
     by_cases hPx : P x <;> simp_all only [↓reduceIte]
     · rw [breakAt_aux_append] at hQ
-      obtain hQ | rfl := by simpa using hQ
+      obtain hQ | rfl : Q ∈ (w.breakAt_aux P e (nil x) []).tail ∨ Q = cons x e' w' := by
+        simpa using hQ
       · exact w.nonempty_of_mem_breakAt_aux_tail P hQ
       simp
     exact w.nonempty_of_mem_breakAt_aux_tail P hQ

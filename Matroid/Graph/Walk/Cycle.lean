@@ -124,7 +124,7 @@ lemma edgeRestrict_isTour_iff (F : Set β) (C : WList α β) :
     (G ↾ F).IsTour C ↔ G.IsTour C ∧ E(C) ⊆ F := by
   refine ⟨fun h ↦ ⟨h.of_le edgeRestrict_le, ?_⟩,
     fun ⟨h, hss⟩ ↦ h.of_le_of_subset (by simp) (by simp [hss, h.isWalk.edgeSet_subset])⟩
-  have := by simpa using h.isWalk.edgeSet_subset
+  have := by simpa only [edgeRestrict_edgeSet, subset_inter_iff] using h.isWalk.edgeSet_subset
   use this.2
 
 @[simp]
@@ -139,7 +139,8 @@ lemma edgeDelete_isTour_iff (F : Set β) (C : WList α β) :
 lemma induce_isTour_iff (X : Set α) (C : WList α β) : (G[X]).IsTour C ↔ G.IsTour C ∧ V(C) ⊆ X := by
   refine ⟨fun h ↦ ⟨?_, h.isWalk.vertexSet_subset⟩, fun ⟨h, hss⟩ ↦ ?_⟩
   · refine ⟨⟨?_, h.edge_nodup⟩, h.nonempty, h.isClosed⟩
-    obtain ⟨x, hx, rfl⟩ | ⟨hC, hCX⟩ := by simpa [isWalk_induce_iff] using h.isWalk
+    obtain ⟨x, hx, rfl⟩ | ⟨hC, hCX⟩ := by
+      simpa only [isWalk_induce_iff, mem_diff] using h.isWalk
     · simpa using h.nonempty
     exact hC
   refine ⟨⟨?_, h.edge_nodup⟩, h.nonempty, h.isClosed⟩
@@ -151,7 +152,7 @@ lemma vertexDelete_isTour_iff (X : Set α) (C : WList α β) :
   refine ⟨fun h ↦ ⟨⟨⟨?_, h.edge_nodup⟩, h.nonempty, h.isClosed⟩,
     h.isWalk.disjoint_of_vertexDelete⟩, fun ⟨h, hdisj⟩ ↦
     ⟨⟨by simp [h.isWalk, hdisj], h.edge_nodup⟩, h.nonempty, h.isClosed⟩⟩
-  have := by simpa using h.isWalk
+  have := by simpa only [isWalk_vertexDelete_iff] using h.isWalk
   exact this.1
 
 /-- Dedup preserves being a trail (walk with distinct edges). -/
@@ -305,8 +306,10 @@ lemma IsCyclicWalk.length_eq_two_iff (h : G.IsCyclicWalk C) :
   | cons u e' w => cases w with
     | nil => simp
     | cons v e'' w =>
-      obtain ⟨⟨he : e' ≠ e'', -⟩, -⟩ := by simpa using h.edge_nodup
-      obtain ⟨hvw : v ∉ w, -⟩ := by simpa using h.tail_isPath.nodup
+      obtain ⟨⟨he : e' ≠ e'', -⟩, -⟩ := by
+        simpa only [cons_edge, List.nodup_cons, List.mem_cons, not_or] using h.edge_nodup
+      obtain ⟨hvw : v ∉ w, -⟩ := by
+        simpa only [tail_cons, cons_vertex, List.nodup_cons, mem_vertex] using h.tail_isPath.nodup
       suffices w.Nil ↔ w = nil w.last by
         simpa [he, show u = w.last from h.isClosed, show w.last ≠ v by rintro rfl; simp_all]
       exact ⟨Nil.eq_nil_last, fun h ↦ by rw [h]; simp⟩
@@ -328,7 +331,7 @@ lemma IsCyclicWalk.loop_or_noloop (h : G.IsCyclicWalk C) :
   cases hne with | cons y f w =>
   refine Or.inr ⟨?_, h.tail_isPath.noloop⟩
   rintro rfl
-  obtain rfl := by simpa using h.isClosed
+  obtain rfl : x = w.last := by simpa using h.isClosed
   simpa using h.nodup
 
 lemma IsCyclicWalk.noloop_of_nontrivial (h : G.IsCyclicWalk C) (hnt : C.Nontrivial) : C.NoLoop := by
@@ -348,7 +351,7 @@ lemma edgeRestrict_isCyclicWalk_iff (F : Set β) (C : WList α β) :
     (G ↾ F).IsCyclicWalk C ↔ G.IsCyclicWalk C ∧ E(C) ⊆ F := by
   refine ⟨fun h ↦ ⟨h.of_le edgeRestrict_le, ?_⟩,
     fun ⟨h, hss⟩ ↦ h.isCycle_of_le (by simp) (by simp [hss, h.isWalk.edgeSet_subset])⟩
-  have := by simpa using h.isWalk.edgeSet_subset
+  have := by simpa only [edgeRestrict_edgeSet, subset_inter_iff] using h.isWalk.edgeSet_subset
   use this.2
 
 @[simp]
@@ -423,7 +426,7 @@ lemma IsCyclicWalk.exists_isPath_vertex [DecidableEq α] (hC : G.IsCyclicWalk C)
   rw [hP', first_cons, ← hP']
   congr
   apply_fun WList.first at hP'
-  obtain rfl := by simpa [first_cons] using hP'
+  obtain rfl := by simpa only [first_cons] using hP'
   rw [C.rotate_first _ hn.le]
   exact hC.idxOf_get hn
 
@@ -432,7 +435,7 @@ lemma IsCyclicWalk.exists_isPath_edge (hC : G.IsCyclicWalk C) (hnt : C.Nontrivia
   obtain ⟨n, hn, hCne, rfl⟩ := exists_rotate_firstEdge_eq he
   obtain ⟨P, u, e, f, heP, hPf, hne, hC'⟩ := (hC.rotate n).exists_isPath' (hnt.rotate n)
   use n, P.concat f u, hPf, ?_, ?_
-  · have := by simpa using heP.edge_nodup
+  · have := by simpa only [cons_edge, List.nodup_cons] using heP.edge_nodup
     simp [hC', hne, this.1]
   convert hC' using 1
   simp [hC']

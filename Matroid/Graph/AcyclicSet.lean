@@ -65,10 +65,11 @@ lemma isCycleSet_singleton_iff : G.IsCycleSet {e} ↔ ∃ x, G.IsLoopAt e x := b
   refine ⟨fun ⟨C, hC, hCe⟩ ↦ ?_, fun ⟨x, hx⟩ ↦ hx.isCycleSet⟩
   match C with
   | .nil u => simp at hCe
-  | .cons u e (nil v) =>
-    obtain rfl := by simpa using hCe
-    obtain ⟨hv, rfl⟩ := by simpa [isTour_iff] using hC.isTour
-    use u, hv.2
+  | .cons u f (nil v) =>
+    obtain rfl : f = e := by simpa using hCe
+    obtain ⟨⟨hu, hv⟩, rfl⟩ : (v ∈ V(G) ∧ G.IsLink f u v) ∧ u = v := by
+      simpa [isTour_iff] using hC.isTour
+    use u, hv
   | .cons u f1 (cons v f2 w) =>
     exfalso
     have := by simpa only [cons_isTrail_iff, first_cons, cons_edge, List.mem_cons, not_or] using

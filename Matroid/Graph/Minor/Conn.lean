@@ -221,8 +221,9 @@ lemma IsPath.uncontract_isPath (hφ : G.connPartition.IsRepFun φ) (hGH : G ≤ 
 lemma IsCyclicWalk.exists_isCyclicWalk_of_contract (hφ : G.connPartition.IsRepFun φ) (hGH : G ≤ H)
     (hw : H /[φ, E(G)].IsCyclicWalk W) : ∃ C, H.IsCyclicWalk C ∧ E(C) \ E(G) = E(W) := by
   obtain ⟨z, e, w⟩ := hw.nonempty
-  obtain ⟨-, ⟨⟨x, y, hxy, rfl, hwf⟩, heG⟩, hew⟩ := by simpa using hw.isTrail
-  have hwP := by simpa using hw.tail_isPath
+  obtain ⟨-, ⟨⟨x, y, hxy, rfl, hwf⟩, heG⟩, hew⟩ := by
+    simpa only [cons_isTrail_iff, contract_isLink] using hw.isTrail
+  have hwP := by simpa only [tail_cons] using hw.tail_isPath
   have hv : w.last = φ x := by simpa using hw.isClosed.symm
   have hwP' := hwP.uncontract_isPath hφ hGH hwf hv
   have he : e ∉ E(IsWalk.uncontract hφ hwP.isWalk hwf hv) := by

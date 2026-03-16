@@ -88,7 +88,7 @@ lemma IsWalk.connBetween_of_mem_of_mem (hW : G.IsWalk W) (hx : x ∈ W) (hy : y 
   induction hW generalizing z with
   | nil => simp_all
   | cons hW h ih =>
-    obtain rfl | hz := by simpa using hz
+    obtain rfl | hz := by simpa only [mem_cons_iff] using hz
     · exact h.connBetween.trans <| by simpa only [last_cons] using ih <| by simp
     simpa using ih hz
 
@@ -285,8 +285,8 @@ lemma VertexEnsemble.vertexSet_inter (P : G.VertexEnsemble s t ι) {i j : ι} (h
 lemma VertexEnsemble.nonempty_of_ne (P : G.VertexEnsemble s t ι) (hne : s ≠ t) (i) :
     (P.f i).Nonempty := by
   by_contra!
-  obtain hs := by simpa [this.first_eq_last] using P.first_eq i
-  obtain ht := by simpa using P.last_eq i
+  obtain hs := by simpa only [this.first_eq_last] using P.first_eq i
+  obtain ht := by simpa only using P.last_eq i
   exact hne (hs.symm.trans ht)
 
 lemma VertexEnsemble.nontrivial_of_not_adj (P : G.VertexEnsemble s t ι) (hne : s ≠ t)
@@ -294,12 +294,12 @@ lemma VertexEnsemble.nontrivial_of_not_adj (P : G.VertexEnsemble s t ι) (hne : 
   generalize hi : P.f i = w
   match w with
   | .nil x =>
-    obtain rfl := by simpa [hi] using P.first_eq i
-    obtain rfl := by simpa [hi] using P.last_eq i
+    obtain rfl := by simpa only [hi, nil_first] using P.first_eq i
+    obtain rfl := by simpa only [hi, nil_last] using P.last_eq i
     simp at hne
   | .cons s e (nil t) =>
-    obtain rfl := by simpa [hi] using P.first_eq i
-    obtain rfl := by simpa [hi] using P.last_eq i
+    obtain rfl := by simpa only [hi, first_cons] using P.first_eq i
+    obtain rfl := by simpa only [hi, last_cons, nil_last] using P.last_eq i
     have : G.IsLink e s t ∧ t ∈ V(G) ∧ ¬s = t := by simpa [hi] using P.isPath i
     exact hadj ⟨e, this.1⟩ |>.elim
   | .cons s e (cons x e' w) => simp
@@ -495,9 +495,9 @@ lemma connBetweenGE_le_encard_sub_two (h : G.ConnBetweenGE s t n) (hne : s ≠ t
     exact ENat.le_sub_of_add_le_right (by simp) <| refl _
   rw [not_and_or] at hst
   obtain hs | ht := hst
-  · obtain rfl := by simpa using mt h.left_mem hs
+  · obtain rfl := by simpa only [ne_eq, Decidable.not_not] using mt h.left_mem hs
     simp
-  · obtain rfl := by simpa using mt h.right_mem ht
+  · obtain rfl := by simpa only [ne_eq, Decidable.not_not] using mt h.right_mem ht
     simp
 
 lemma connBetweenGE_le_encard (h : G.ConnBetweenGE s t n) (hne : s ≠ t) (hadj : ¬ G.Adj s t) :

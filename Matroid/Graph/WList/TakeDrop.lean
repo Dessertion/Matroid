@@ -625,7 +625,7 @@ lemma Nonempty.tail_isLink_iff (hw : w.Nonempty) (hnd : w.edge.Nodup) :
     w.tail.IsLink f x y ↔ w.IsLink f x y ∧ ¬f = hw.firstEdge := by
   cases hw with | cons u e w =>
   simp only [tail_cons, Nonempty.firstEdge_cons]
-  have ⟨hew, hnd⟩  : e ∉ w.edge ∧ w.edge.Nodup := by simpa using hnd
+  have ⟨hew, hnd⟩ : e ∉ w.edge ∧ w.edge.Nodup := by simpa using hnd
   exact ⟨fun h ↦ ⟨h.cons .., fun hfe ↦ hew <| by simpa [hfe.symm] using h.edge_mem⟩,
     fun ⟨h, hne⟩ ↦ by cases h with simp_all⟩
 

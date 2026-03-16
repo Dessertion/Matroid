@@ -221,11 +221,11 @@ def mixedLineEnsembleMap (A : G.VertexEnsemble s t ι) (hA : A.edgeDisjoint) :
       mem_vertexSet_iff, mem_edgeSet_iff, mem_insert_iff, mem_singleton_iff]
     refine ⟨fun ⟨h1, h2⟩ ↦ ?_, ?_⟩
     · obtain ⟨u, hu, rfl⟩ | ⟨e, he, rfl⟩ := h1 <;> obtain ⟨v, hv, hveq⟩ | ⟨f, hf, heeq⟩ := h2
-      · obtain rfl := by simpa using hveq
+      · obtain rfl := by simpa only [inl.injEq] using hveq
         obtain rfl | rfl := A.eq_or_eq_of_mem hu hv hne <;> tauto
       · simp at heeq
       · simp at hveq
-      · obtain rfl := by simpa using heeq
+      · obtain rfl := by simpa only [inr.injEq] using heeq
         exact hA hne |>.ne_of_mem he hf rfl |>.elim
     rintro (rfl | rfl)
     · simp [A.first_eq i ▸ first_mem, A.first_eq j ▸ first_mem]

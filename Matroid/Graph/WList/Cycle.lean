@@ -124,10 +124,10 @@ lemma rotate_eq_append {w₁ w₂ : WList α β} (h : w₁.first = w₂.last) (h
     (w₁ ++ w₂).rotate w₁.length = w₂ ++ w₁ := by
   match w₁ with
   | .nil u =>
-    obtain rfl := by simpa using h
+    obtain rfl := by simpa only [nil_first] using h
     simp
   | .cons u e w =>
-    obtain rfl := by simpa using h
+    obtain rfl := by simpa only [first_cons] using h
     simp only [cons_append, cons_length, rotate_cons_succ]
     rw [← WList.append_concat, ← WList.concat_append]
     apply rotate_eq_append <;> simp_all

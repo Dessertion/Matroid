@@ -16,7 +16,7 @@ theorem twoPaths (hP : G.IsPath P) (hQ : G.IsPath Q) (hPQ : P ≠ Q) (h0 : P.fir
   | nil u => cases Q with | _ => simp_all
   | cons u e P ih =>
     subst h0
-    obtain ⟨heP : e ∉ P.edge, -⟩ := by simpa using hP.edge_nodup
+    obtain ⟨heP, -⟩ := by simpa only [cons_edge, List.nodup_cons] using hP.edge_nodup
     simp only [cons_isPath_iff] at hP
     obtain ⟨x, rfl⟩ | hne := Q.exists_eq_nil_or_nonempty
     · obtain rfl : P.last = x := h1
@@ -79,7 +79,7 @@ lemma IsForest.union_isForest_of_subsingleton_inter (hG : G.IsForest) (hH : H.Is
     rwa [Graph.union_eq_union_edgeDelete]
   intro e he
   wlog heG : e ∈ E(G) generalizing G H with aux
-  · obtain heH := by simpa using he
+  · obtain heH : e ∈ E(G) ∨ e ∈ E(H) := by simpa using he
     rw [inter_comm] at hi
     have := aux hH hG hi hc.symm (by simpa [or_comm]) (heH.resolve_left heG)
     rwa [hc.symm.union_comm] at this
@@ -89,7 +89,7 @@ lemma IsForest.union_isForest_of_subsingleton_inter (hG : G.IsForest) (hH : H.Is
   contrapose! this
   obtain ⟨P, hP, rfl, rfl⟩ := this.exists_isPath
   use P, ?_
-  obtain ⟨hP, heP⟩ := by simpa using hP
+  obtain ⟨hP, heP⟩ : (G ∪ H).IsPath P ∧ e ∉ P.edge := by simpa using hP
   simpa [hP.isPath_of_union_of_subsingleton_inter hi hxy.left_mem hxy.right_mem |>.isWalk]
 
 lemma IsForest.of_isCompOf_isForest (h : ∀ H : Graph α β, H.IsCompOf G → H.IsForest) :
@@ -106,11 +106,11 @@ lemma IsPath.toGraph_isForest (hG : G.IsPath P) : P.toGraph.IsForest := by
 
 lemma IsCyclicWalk.toGraph_not_isForest (hC : G.IsCyclicWalk C) : ¬ C.toGraph.IsForest := by
   obtain ⟨u, e, P⟩ := hC.nonempty
-  obtain rfl := by simpa using hC.isClosed
+  obtain rfl := by simpa only [cons_isClosed_iff] using hC.isClosed
   simp only [IsForest, toGraph_edgeSet, cons_edgeSet, mem_insert_iff, mem_edgeSet_iff,
     forall_eq_or_imp, not_and_or]
   left
-  obtain ⟨hP, he, heP⟩ := by simpa using hC.isTrail
+  obtain ⟨hP, he, heP⟩ := by simpa only [cons_isTrail_iff] using hC.isTrail
   rw [(he.of_le_of_mem hC.isWalk.toGraph_le (by simp)).isBridge_iff_not_connBetween, not_not,
     connBetween_comm]
   use P, ?_
@@ -154,7 +154,7 @@ lemma IsForest.not_isTour (hG : G.IsForest) : ¬ G.IsTour P := by
 lemma isForest_iff_not_isCyclicWalk : G.IsForest ↔ ∀ C, ¬ G.IsCyclicWalk C := by
   refine ⟨fun hG C hC ↦ hG.not_isTour hC.isTour, fun h ↦ ?_⟩
   contrapose! h
-  obtain ⟨e, he, hb⟩ := by simpa [IsForest] using h
+  obtain ⟨e, he, hb⟩ := by simpa only [IsForest, not_forall, Classical.not_imp] using h
   obtain ⟨C, hC, heC⟩ := exists_isCyclicWalk_of_not_isBridge he hb
   use C
 
@@ -174,13 +174,14 @@ lemma IsCycle.nonempty (hG : G.IsCycle) : V(G).Nonempty := by
   use x, hxy.left_mem
 
 lemma IsCycle.connected (hG : G.IsCycle) : G.Connected := by
-  obtain ⟨H, hHc, hHF⟩ := by simpa using mt IsForest.of_isCompOf_isForest hG.prop
+  obtain ⟨H, hHc, hHF⟩ := by
+    simpa only [not_forall, Classical.not_imp] using mt IsForest.of_isCompOf_isForest hG.prop
   obtain rfl := hG.eq_of_le hHF hHc.le
   exact hHc.connected
 
 lemma IsCyclicWalk.toGraph_isCycle (hC : G.IsCyclicWalk C) : C.toGraph.IsCycle := by
   refine ⟨hC.toGraph_not_isForest, fun H hH hle ↦ ?_⟩
-  obtain ⟨e, heC, hb⟩ := by simpa [IsForest] using hH
+  obtain ⟨e, heC, hb⟩ := by simpa only [IsForest, not_forall, Classical.not_imp] using hH
   obtain ⟨C', hC', heC'⟩ := exists_isCyclicWalk_of_not_isBridge (by simpa) hb
   convert hC'.isWalk.toGraph_le using 1
   apply hC.toGraph_eq_of_le (hC'.of_le <| hle.trans hC.isWalk.toGraph_le) ?_ |>.symm
@@ -218,17 +219,17 @@ lemma IsCycle.finite (hG : G.IsCycle) : G.Finite := by
   infer_instance
 
 lemma IsCycle.regular_two {C : Graph α β} (hC : C.IsCycle) : C.Regular 2 := by
-  obtain ⟨C', hC', rfl⟩ := by simpa [isCycle_iff_exists_isCyclicWalk_eq] using hC
+  obtain ⟨C', hC', rfl⟩ := by simpa only [isCycle_iff_exists_isCyclicWalk_eq] using hC
   exact hC'.toGraph_regular
 
 lemma IsCycle.eq_of_le (hG : G.IsCycle) (hH : H.IsCycle) (hle : G ≤ H) : G = H := by
-  obtain ⟨C', hC', rfl⟩ := by simpa [isCycle_iff_exists_isCyclicWalk_eq] using hG
-  obtain ⟨C'', hC'', rfl⟩ := by simpa [isCycle_iff_exists_isCyclicWalk_eq] using hH
+  obtain ⟨C', hC', rfl⟩ := by simpa only [isCycle_iff_exists_isCyclicWalk_eq] using hG
+  obtain ⟨C'', hC'', rfl⟩ := by simpa only [isCycle_iff_exists_isCyclicWalk_eq] using hH
   exact hC''.toGraph_eq_of_le (hC'.of_le hle) hle
 
 lemma IsCycle.toGraph_of_isCyclicWalk {C : WList α β} (hG : G.IsCycle)
     (hC : G.IsCyclicWalk C) : C.toGraph = G := by
-  obtain ⟨C', hC', rfl⟩ := by simpa [isCycle_iff_exists_isCyclicWalk_eq] using hG
+  obtain ⟨C', hC', rfl⟩ := by simpa only [isCycle_iff_exists_isCyclicWalk_eq] using hG
   exact hC'.toGraph_eq_of_le hC <| hC.isWalk.toGraph_le
 
 @[simp]
@@ -258,7 +259,7 @@ lemma IsForest.isPath_of_isTrail (hG : G.IsForest) (hP : G.IsTrail P) : G.IsPath
     induction P with
     | nil u => simp
     | cons u e w ih =>
-    obtain ⟨hw, hl, hew⟩ := by simpa using hP
+    obtain ⟨hw, hl, hew⟩ := by simpa only [cons_isTrail_iff] using hP
     simp only [cons_vertex, List.nodup_cons, mem_vertex, ih hw, and_true]
     rintro huw
     refine hG.not_isTour (P := cons u e <| w.prefixUntilVertex u) ⟨?_, by simp, by simp [huw]⟩

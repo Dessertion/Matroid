@@ -137,5 +137,4 @@ lemma signedIncMatrix_isCyclicWalk (hw : G.IsCyclicWalk w) (D : orientation G) :
     (∑ e ∈ w.edge.toFinset, (D.coeff_walk hw.isWalk 𝔽 e) • (signedIncMatrix D 𝔽 e)) = 0 := by
   rw [D.signedIncMatrix_isTrail hw.isTrail hw.nonempty, hw.isClosed, sub_self]
 
-end orientation
-end Graph
+end Graph.orientation

@@ -95,7 +95,7 @@ lemma Connected.isCycle_of_regular [G.EdgeFinite] (hG : G.Connected) (hreg : G.R
   by_cases hF : G.IsForest
   · obtain ⟨x, hx⟩ := hF.exists_isLeaf hE
     simpa [hx.degree] using hreg.degree hx.mem
-  obtain ⟨C, hC : G.IsCyclicWalk C⟩ := by simpa [isForest_iff_not_isCyclicWalk] using hF
+  obtain ⟨C, hC⟩ := by simpa only [isForest_iff_not_isCyclicWalk, not_forall, not_not] using hF
   rw [← hG.eq_of_le_of_forall_degree_ge hC.isWalk.toGraph_le (by simp) ?_]
   · exact hC.toGraph_isCycle
   simp +contextual only [toGraph_vertexSet, mem_vertexSet_iff, hC.toGraph_regular.degree]

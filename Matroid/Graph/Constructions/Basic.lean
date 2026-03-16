@@ -480,7 +480,7 @@ def OfSimpleGraph (G : SimpleGraph α) : Graph α (Sym2 α) where
   IsLink e x y := G.Adj x y ∧ s(x, y) = e
   isLink_symm e he x y h := by use h.1.symm, Sym2.eq_swap ▸ h.2
   eq_or_eq_of_isLink_of_isLink e x y z w h1 h2 := by
-    have := by simpa using h1.2.trans h2.2.symm
+    have : x = z ∧ y = w ∨ x = w ∧ y = z := by simpa using h1.2.trans h2.2.symm
     tauto
   left_mem_of_isLink e x y h := by simp
 
@@ -495,7 +495,7 @@ def OfSimpleGraphSet {S : Set α} (G : SimpleGraph S) : Graph α (Sym2 α) where
   eq_or_eq_of_isLink_of_isLink e x y z w h1 h2 := by
     obtain ⟨-, -, -, rfl⟩ := h1
     obtain ⟨-, -, -, heq⟩ := h2
-    have := by simpa using heq
+    have : z = x ∧ w = y ∨ z = y ∧ w = x := by simpa using heq
     tauto
   left_mem_of_isLink e x y h := h.1
   edge_mem_iff_exists_isLink e := ⟨fun ⟨a, b, hab, he⟩ ↦ ⟨a.val, b.val, a.prop, b.prop, hab, by
@@ -535,7 +535,7 @@ lemma lineGraph_inc (G : Graph α β) (s : Sym2 β) (e : β) : L(G).Inc s e ↔ 
     iff_def, forall_exists_index, and_imp]
   refine ⟨fun a hs hne x he ha ↦ ?_, fun a b hne x ha hb hs hes ↦ ?_⟩ <;> subst s
   · exact ⟨⟨e, a, ⟨hne, x, he, ha⟩, rfl⟩, by simp⟩
-  obtain rfl | rfl := by simpa using hes
+  obtain rfl | rfl := by simpa only [Sym2.mem_iff] using hes
   · use b, rfl, hne, x
   use a, Sym2.eq_swap, Ne.symm hne
   exact ⟨x, hb, ha⟩
@@ -573,10 +573,11 @@ def mixedLineGraph (G : Graph α β) : Graph (α ⊕ β) (α × β) where
   IsLink e x y := G.Inc e.2 e.1 ∧ s(Sum.inl e.1, Sum.inr e.2) = s(x, y)
   isLink_symm e he x y h := ⟨h.1, by simp [h.2]⟩
   eq_or_eq_of_isLink_of_isLink e a b c d hab hcd := by
-    have := by simpa using hab.2.symm.trans hcd.2
+    have : a = c ∧ b = d ∨ a = d ∧ b = c := by simpa using hab.2.symm.trans hcd.2
     tauto
   left_mem_of_isLink e x y h := by
-    obtain ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ := by simpa using h.2
+    obtain ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ := by
+      simpa only [Sym2.eq, Sym2.rel_iff', Prod.mk.injEq, Prod.swap_prod_mk] using h.2
     · simp [h.1.vertex_mem]
     simp [h.1.edge_mem]
   edge_mem_iff_exists_isLink e := by simp

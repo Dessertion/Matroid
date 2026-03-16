@@ -312,8 +312,8 @@ theorem Menger'sTheorem [G.Finite] (hι : ENat.card ι = n) (hnt : V(G).Nontrivi
     simp only [WList.length_eq_one_iff, mem_setOf_eq, mem_empty_iff_false, iff_false,
       not_exists, Set.ext_iff]
     intro i u e v hi
-    obtain rfl := by simpa using hi ▸ (A.first_eq i)
-    obtain rfl := by simpa using hi ▸ (A.last_eq i)
+    obtain rfl := hi ▸ (A.first_eq i)
+    obtain rfl := hi ▸ (A.last_eq i)
     obtain ⟨huv, -, -⟩ := cons_isPath_iff.mp <| hi ▸ (A.isPath i)
     simp only [first_cons, last_cons, nil_last, Set.ext_iff, mem_linkEdges_iff,
       mem_empty_iff_false, iff_false] at hem

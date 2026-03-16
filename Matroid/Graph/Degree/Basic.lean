@@ -13,8 +13,8 @@ lemma List.eq_of_sum_eq_le {α : Type*} [AddCommMonoid α] [PartialOrder α] [Ad
       sum_cons, cons.injEq, map_inj_left]
     obtain ⟨hxy, hle⟩ := hle
     rw [add_eq_add_iff_eq_and_eq hxy (by apply List.sum_le_sum; simpa)] at hsum
-    have := by simpa using tail.eq_of_sum_eq_le (by simpa) (by simp [hsum.2])
-    exact ⟨hsum.1, this⟩
+    refine ⟨hsum.1, ?_⟩
+    simpa using tail.eq_of_sum_eq_le (by simpa) (by simp [hsum.2])
 
 open Set
 
@@ -291,7 +291,7 @@ theorem handshake_eDegree_subtype (G : Graph α β) :
     ∑' (v : V(G)), G.eDegree v = 2 * E(G).encard := by
   rw [← handshake_eDegree, tsum_subtype_eq_of_support_subset]
   refine fun x (hx : G.eDegree x ≠ 0) ↦ ?_
-  obtain ⟨e, hex : G.Inc e x⟩ := by simpa [eDegree] using hx
+  obtain ⟨e, hex⟩ : ∃ e, G.Inc e x := by simpa [eDegree] using hx
   exact hex.vertex_mem
 
 set_option backward.isDefEq.respectTransparency false in
@@ -366,7 +366,7 @@ lemma degree_eq_ncard_adj [G.Simple] : G.degree x = N(G, x).ncard := by
 
 lemma locallyFinite_of_eDegree_ne_top (hG : ∀ x, G.eDegree x ≠ ⊤) : G.LocallyFinite := by
   contrapose! hG
-  obtain ⟨x, hx⟩ := by simpa [locallyFinite_iff] using hG
+  obtain ⟨x, hx⟩ := by simpa only [locallyFinite_iff, not_forall, Set.not_finite] using hG
   use x
   rw [eq_top_iff]
   convert ← G.encard_setOf_inc_le_eDegree x

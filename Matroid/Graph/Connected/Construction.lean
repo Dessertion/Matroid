@@ -66,7 +66,7 @@ lemma isSepBetween_noEdge_of_ne (hne : x ≠ y) (hY : Y ⊆ X \ {x, y}) :
 @[simp]
 lemma isEdgeSep_noEdge_iff : (Graph.noEdge X β).IsEdgeSep F ↔ F = ∅ ∧ X.encard ≠ 1 := by
   refine ⟨fun ⟨hF, h⟩ => ?_, ?_⟩
-  · obtain rfl := by simpa using hF
+  · obtain rfl : F = ∅ := by simpa using hF
     simpa [encard_eq_one] using h
   rintro ⟨rfl, hne⟩
   simpa [encard_eq_one] using hne
