@@ -3,12 +3,10 @@ import Matroid.Axioms.Circuit
 import Matroid.Axioms.Closure
 import Matroid.Axioms.Flat
 import Matroid.Axioms.Rank
-import Matroid.BasisDuo
 import Matroid.Binary.Crossing
 import Matroid.Binary.Representation
 import Matroid.Bool
 import Matroid.Circuit
-import Matroid.Clone
 import Matroid.Closure
 import Matroid.Connectivity.Basic
 import Matroid.Connectivity.ConnSystem.Basic

@@ -427,41 +427,6 @@ lemma unif_isoRestr_unifOn {a : ℕ} (hbb : b ≤ E.encard) :
     Subtype.coe_preimage_self, subset_univ, and_true, Subtype.val_injective.encard_image]
   rw [Function.Injective.encard_image (by exact φ.injective)]
 
-section IsFreeBase
-
-variable {B B' : Set α}
-
-/-- A free base is one where exchanging any two elements gives a base. -/
-@[mk_iff]
-structure IsFreeBase (M : Matroid α) (B : Set α) : Prop where
-  isBase : M.IsBase B
-  isBase_of_exchange : ∀ B' ⊆ M.E, B'.IsExchange B → M.IsBase B'
-
-lemma IsFreeBase.isBase_insert_diff_singleton (h : M.IsFreeBase B) (he : e ∈ B) (hf : f ∈ M.E \ B) :
-    M.IsBase (insert f (B \ {e})) :=
-  h.isBase_of_exchange _ (by grind [h.isBase.subset_ground]) (isExchange_diff_insert he hf.2).symm
-
-lemma IsFreeBase.compl_dual (hB : M.IsFreeBase B) : M✶.IsFreeBase (M.E \ B) := by
-  refine ⟨hB.isBase.compl_isBase_dual, fun B' hB' hB'ex ↦ ?_⟩
-  have h1 := (isExchange_diff_right_comm hB' hB.isBase.subset_ground).1 hB'ex
-  have h2 := (hB.isBase_of_exchange _ diff_subset h1).compl_isBase_dual
-  rwa [diff_diff_cancel_left (by simpa)] at h2
-
-lemma isFreeBase_dual_iff (hB : B ⊆ M.E) : M✶.IsFreeBase B ↔ M.IsFreeBase (M.E \ B) := by
-  refine ⟨fun h ↦ by simpa using h.compl_dual, fun h ↦ ?_⟩
-  rw [← diff_diff_cancel_left hB]
-  exact h.compl_dual
-
-lemma IsFreeBase.indep_of_ssubset_insert (hB : M.IsFreeBase B) (hI : I ⊂ insert e B)
-    (he : e ∈ M.E := by aesop_mat) : M.Indep I := by
-  by_cases! he : e ∉ (I \ B)
-  · exact hB.isBase.indep.subset <| by grind
-  obtain ⟨f, hf⟩ := exists_of_ssubset hI
-  refine (hB.isBase_insert_diff_singleton (e := f) (f := e) ?_ ?_).indep.subset ?_ <;>
-  grind
-
-end IsFreeBase
-
 section Infinite
 
 variable {B B' : Set α}
@@ -505,6 +470,10 @@ lemma IsUniform.dual (hM : M.IsUniform) : M✶.IsUniform := by
     dual_ground, ← spanning_iff_compl_coindep, dual_coindep_iff, or_comm]
   exact hM diff_subset
 
+lemma IsUniform.not_isCircuitHyperplane (hM : M.IsUniform) (C : Set α) :
+    ¬ M.IsCircuitHyperplane C :=
+  fun ⟨h1, h2⟩ ↦ by simpa using (isUniform_iff_circuit_cocircuit.1 hM) h1 h2.compl_isCocircuit
+
 @[simp] lemma uniform_dual_iff : M✶.IsUniform ↔ M.IsUniform :=
   ⟨fun h ↦ by simpa using h.dual, IsUniform.dual⟩
 
@@ -528,6 +497,22 @@ lemma IsUniform.isFreeBase (hM : M.IsUniform) (hB : M.IsBase B) : M.IsFreeBase B
 lemma IsUniform.isBase_insert_diff_singleton (hM : M.IsUniform) (hB : M.IsBase B) (he : e ∈ M.E \ B)
     (hf : f ∈ B) : M.IsBase (insert e (B \ {f})) :=
   (hM.isFreeBase hB).isBase_insert_diff_singleton hf he
+
+lemma IsUniform.isBase_of_isBase_of_finDiff {B B' : Set α} (hM : M.IsUniform) (hB : M.IsBase B)
+    (h_fin : FinDiff B B') (hB' : B' ⊆ M.E) : M.IsBase B' := by
+  induction h_fin using FinDiff.induction with
+  | refl B => assumption
+  | exchange B X B' hBX hXB' _ _ ih =>
+    exact (hM.isFreeBase (ih hB (by grind))).isBase_of_exchange _ hB' hXB'.symm
+
+lemma IsUniform.insert_isCircuit_of_isBase (hM : M.IsUniform) (hB : M.IsBase B) (he : e ∈ M.E \ B) :
+    M.IsCircuit (insert e B) := by
+  rw [isCircuit_iff_dep_forall_diff_singleton_indep, and_iff_right (hB.insert_dep he)]
+  refine fun f hef ↦ IsBase.indep ?_
+  obtain rfl | hne := eq_or_ne e f
+  · rwa [insert_diff_self_of_notMem he.2]
+  rw [← insert_diff_singleton_comm hne]
+  exact hM.isBase_insert_diff_singleton hB he <| by grind
 
 lemma uniform_iff_forall_insert_diff_singleton : M.IsUniform ↔
     ∀ ⦃B e f⦄, M.IsBase B → e ∈ M.E \ B → f ∈ B → M.IsBase (insert e (B \ {f})) := by
@@ -591,29 +576,6 @@ lemma IsUniform.closure_not_spanning (hM : M.IsUniform) (hIE : I ⊆ M.E) (hIs :
   rw [(hIe.subset (subset_insert _ _)).mem_closure_iff_of_notMem heI] at he
   exact he.not_indep hIe
 
--- lemma IsUniform.isBase_of_isBase_of_finDiff {B B' : Set α} (hM : M.IsUniform) (hB : M.IsBase B)
---     (h_fin : FinDiff B B') (hB' : B' ⊆ M.E) : M.IsBase B' := by
---   obtain h | h := (B' \ B).eq_empty_or_nonempty
---   · rw [diff_eq_empty] at h
---     rwa [h_fin.symm.eq_of_subset h]
---   obtain ⟨f, hfB, hfB'⟩ := h_fin.nonempty_of_nonempty h
---   obtain ⟨e, heB', heB⟩ := h
-
---   have hrw : (B' \ insert e (B \ {f})) = ((B' \ B) \ {e}) := by aesop
---   have IH : (B' \ insert e (B \ {f})).encard < (B' \ B).encard := by
---     rw [hrw, ← encard_diff_singleton_add_one (show e ∈ B' \ B from ⟨heB', heB⟩),
---       ENat.lt_add_one_iff]
---     simp_rw [encard_ne_top_iff]
---     exact h_fin.diff_right_finite.diff
-
---   apply hM.isBase_of_isBase_of_finDiff (hM.exchange hB ⟨hB' heB', heB⟩ hfB)
---   rwa [finDiff_iff, insert_diff_of_mem _ heB', diff_diff_comm,
---     and_iff_right h_fin.diff_left_finite.diff, ← singleton_union, union_comm, ← diff_diff,
---     diff_diff_right, inter_singleton_eq_empty.2 hfB', union_empty,
---     ← WithTop.add_right_inj (z := 1) (by simp),
---     encard_diff_singleton_add_one (show f ∈ B \ B' from ⟨hfB, hfB'⟩),
---     encard_diff_singleton_add_one (show e ∈ B' \ B from ⟨heB', heB⟩), h_fin.encard_diff_eq]
--- termination_by (B' \ B).encard
 
 lemma maximal_right_of_forall_ge {α : Type*} {P Q : α → Prop} {a : α} [PartialOrder α]
     (hP : ∀ ⦃x y⦄, P x → x ≤ y → P y) (h : Maximal (fun x ↦ P x ∧ Q x) a) : Maximal Q a :=
@@ -1088,7 +1050,7 @@ lemma unifOn_simple_iff {n : ℕ} :
   · obtain rfl | rfl | n := n
     · simp [unifOn_loopless_iff.1 h.loopless]
     · have h : ∀ ⦃e f : α⦄, e ∈ E → f ∈ E → e = f := by
-        simpa +contextual [simple_iff_forall_pair_indep, pair_subset_iff,
+        simpa +contextual [simple_iff_forall_pair_indep, pair_subset_iff, eq_comm,
           encard_le_one_iff_subsingleton] using h
       exact .inr (.inl ⟨rfl, fun x hxE y hyE ↦ h hxE hyE ⟩)
     exact .inr <| .inr <| by simp
@@ -1096,7 +1058,7 @@ lemma unifOn_simple_iff {n : ℕ} :
     pair_subset_iff, and_self, and_true]
   obtain ⟨rfl, rfl⟩ | ⟨rfl, h⟩ | h := h
   · simp
-  · exact fun e f he hf ↦ by simpa [encard_le_one_iff_subsingleton] using h he hf
+  · exact fun e f he hf ↦ by simpa [encard_le_one_iff_subsingleton, eq_comm] using h he hf
   exact fun e f he hf ↦ (encard_pair_le e f).trans <| by simpa
 
 @[simp]

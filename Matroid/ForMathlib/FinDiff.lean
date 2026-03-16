@@ -279,11 +279,18 @@ lemma finDiff_iff {X Y : Set α} :
     inter_singleton_eq_empty.2 he.2, union_empty, encard_diff_singleton_add_one hf, hXY]
 termination_by (X \ Y).encard
 
-lemma FinDiff.nonempty_of_nonempty (h : FinDiff X Y) (hXY : (Y \ X).Nonempty) :
+lemma FinDiff.encard_eq_encard (h : FinDiff X Y) : X.encard = Y.encard := by
+  rw [← encard_diff_add_encard_inter X Y, ← encard_diff_add_encard_inter Y X, h.encard_diff_comm,
+    inter_comm]
+
+lemma FinDiff.diff_nonempty_of_nonempty (h : FinDiff X Y) (hXY : (Y \ X).Nonempty) :
     (X \ Y).Nonempty := by
   rwa [← encard_pos, h.encard_diff_comm, encard_pos]
-  -- rwa [← encard_pos, h.encard_diff_eq, encard_pos]
 
+lemma FinDiff.nonempty_of_nonempty (h : FinDiff X Y) (hX : X.Nonempty) : Y.Nonempty := by
+  rwa [← encard_pos, ← h.encard_eq_encard, encard_pos]
+
+@[simp]
 lemma finDiff_singleton_singleton (e f : α) : FinDiff {e} {f} := by
   convert finDiff_insert_insert (X := ∅) (e := e) (f := f) (by simp) (by simp) <;> simp
 
@@ -294,7 +301,6 @@ lemma FinDiff.union_union_right {P : Set α} (hXY : FinDiff X Y) (hPX : Disjoint
   | exchange X Y Z hXY hYZ hu hi ih =>
     exact (ih hPX (by grind)).trans_exchange <| hYZ.union_union (by grind) hPY
 
-
 lemma FinDiff.diff_diff_right {P : Set α} (hXY : FinDiff X Y) (hPX : P ⊆ X) (hPY : P ⊆ Y) :
     FinDiff (X \ P) (Y \ P) := by
   induction hXY using FinDiff.induction with
@@ -303,7 +309,7 @@ lemma FinDiff.diff_diff_right {P : Set α} (hXY : FinDiff X Y) (hPX : P ⊆ X) (
     exact (ih hPX (by grind)).trans_exchange <| hYZ.diff_diff (by grind) hPY
 
 lemma FinDiff.finDiff_union_union_iff {P Q : Set α} (hPQ : FinDiff P Q) (hPX : Disjoint P X)
-    (hQY : Disjoint Q Y) : FinDiff X Y ↔ FinDiff (X ∪ P) (Y ∪ Q) := by
+    (hQY : Disjoint Q Y) : FinDiff (X ∪ P) (Y ∪ Q) ↔ FinDiff X Y := by
   have hle1 : (P ∩ Y).encard ≤ (P \ Q).encard := encard_le_encard (by grind)
   have hle2 : (Q ∩ X).encard ≤ (Q \ P).encard := encard_le_encard (by grind)
   have h1 : (X \ Y) ∪ (P \ Q) = ((X ∪ P) \ (Y ∪ Q)) ∪ (P ∩ Y) ∪ (Q ∩ X) := by grind
@@ -316,18 +322,31 @@ lemma FinDiff.finDiff_union_union_iff {P Q : Set α} (hPQ : FinDiff P Q) (hPX : 
   enat_to_nat!
   lia
 
+lemma FinDiff.finDiff_diff_diff_iff {P Q : Set α} (hPQ : FinDiff P Q) (hPX : P ⊆ X)
+    (hQY : Q ⊆ Y) : FinDiff (X \ P) (Y \ Q) ↔ FinDiff X Y := by
+  rw [← hPQ.finDiff_union_union_iff disjoint_sdiff_right disjoint_sdiff_right,
+    diff_union_of_subset hPX, diff_union_of_subset hQY]
+
+lemma finDiff_diff_diff_singleton_iff (heX : e ∈ X) (hfY : f ∈ Y) :
+    FinDiff (X \ {e}) (Y \ {f}) ↔ FinDiff X Y :=
+  FinDiff.finDiff_diff_diff_iff (by simp) (by simpa) (by simpa)
+
+lemma FinDiff.finDiff_diff_diff_singleton (hXY : FinDiff X Y) (heX : e ∈ X) (hfY : f ∈ Y) :
+    FinDiff (X \ {e}) (Y \ {f}) :=
+  (finDiff_diff_diff_singleton_iff heX hfY).2 hXY
+
 lemma finDiff_insert_insert_iff (heX : e ∉ X) (hfY : f ∉ Y) :
-    FinDiff X Y ↔ FinDiff (insert e X) (insert f Y) := by
+    FinDiff (insert e X) (insert f Y) ↔ FinDiff X Y := by
   rw [← union_singleton, ← union_singleton,
-    ← (finDiff_singleton_singleton e f).finDiff_union_union_iff (by simpa) (by simpa)]
+    (finDiff_singleton_singleton e f).finDiff_union_union_iff (by simpa) (by simpa)]
 
 lemma FinDiff.union_union {P Q : Set α} (hXY : FinDiff X Y) (hPQ : FinDiff P Q)
     (hPX : Disjoint P X) (hQY : Disjoint Q Y) : FinDiff (X ∪ P) (Y ∪ Q) := by
-  rwa [← hPQ.finDiff_union_union_iff hPX hQY]
+  rwa [hPQ.finDiff_union_union_iff hPX hQY]
 
 lemma FinDiff.insert_insert (hXY : FinDiff X Y) (heX : e ∉ X) (hfY : f ∉ Y) :
     FinDiff (Insert.insert e X) (Insert.insert f Y) := by
-  rwa [← finDiff_insert_insert_iff heX hfY]
+  rwa [finDiff_insert_insert_iff heX hfY]
 
 lemma FinDiff.exchange_right (hXY : FinDiff X Y) {e f : α} (heY : e ∈ Y) (hfY : f ∉ Y) :
     FinDiff X (Insert.insert f (Y \ {e})) := by
@@ -335,12 +354,12 @@ lemma FinDiff.exchange_right (hXY : FinDiff X Y) {e f : α} (heY : e ∈ Y) (hfY
   · have hrw := finDiff_insert_insert_iff (X := X \ {e}) (Y := Y \ {e}) (e := e) (f := e)
       (by simp) (by simp)
     simp only [insert_diff_singleton, insert_eq_of_mem heX, insert_eq_of_mem heY] at hrw
-    rw [← hrw] at hXY
+    rw [hrw] at hXY
     convert hXY.insert_insert (e := e) (f := f) (by simp) (by simp [hfY])
     simp [heX]
   have hef : e ≠ f := by rintro rfl; contradiction
-  rwa [finDiff_insert_insert_iff heX (f := e) (by simp [hef]), insert_comm, insert_diff_singleton,
-    insert_eq_of_mem heY, ← finDiff_insert_insert_iff heX hfY]
+  rwa [← finDiff_insert_insert_iff heX (f := e) (by simp [hef]), insert_comm, insert_diff_singleton,
+    insert_eq_of_mem heY, finDiff_insert_insert_iff heX hfY]
 
 lemma finDiff_iff_exchange (heY : e ∈ Y) (hfY : f ∉ Y) :
     FinDiff X Y ↔ FinDiff X (insert f (Y \ {e})) := by
@@ -366,3 +385,8 @@ lemma finDiff_diff_right_iff {S : Set α} (hXS : X ⊆ S) (hYS : Y ⊆ S) :
 lemma finDiff_diff_right_comm {S} (hXS : X ⊆ S) (hYS : Y ⊆ S) :
     X.FinDiff (S \ Y) ↔ (S \ X).FinDiff Y := by
   rw [← finDiff_diff_right_iff hXS diff_subset, diff_diff_cancel_left hYS]
+
+lemma Finite.finDiff_iff_encard_eq (hX : X.Finite) : X.FinDiff Y ↔ X.encard = Y.encard := by
+  refine ⟨fun h ↦ h.encard_eq_encard, fun h ↦ finDiff_iff.2 ⟨hX.diff, ?_⟩⟩
+  rwa [← encard_diff_add_encard_inter X Y, ← encard_diff_add_encard_inter Y X, inter_comm,
+    add_left_inj_of_ne_top (by simpa using hX.inter_of_right Y)] at h

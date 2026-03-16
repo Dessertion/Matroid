@@ -124,7 +124,7 @@ lemma Tame.minor {N M : Matroid α} (h : M.Tame) (hNM : N ≤m M) : N.Tame := by
 
 /-- Every tame sparse paving matroid has finite rank or corank.
 I am not sure if this is true or not for just `Paving`. -/
-lemma SparsePaving.rankFinite_or_rankFinite_dual [M.Tame] (h : M.SparsePaving) :
+lemma IsSparsePaving.rankFinite_or_rankFinite_dual [M.Tame] (h : M.IsSparsePaving) :
     M.RankFinite ∨ M✶.RankFinite := by
   by_contra! hcon
   simp only [← eRank_lt_top_iff, not_lt, top_le_iff, eRank_eq_top_iff] at hcon
@@ -132,16 +132,16 @@ lemma SparsePaving.rankFinite_or_rankFinite_dual [M.Tame] (h : M.SparsePaving) :
   have : M✶✶.RankInfinite := by simpa
   obtain ⟨C, hC⟩ := M✶.exists_isCircuit
   obtain hi | hd := M.indep_or_dep hC.subset_ground
-  · obtain ⟨K, hK, hCK⟩ := h.paving.exists_isCircuit_of_indep hi
+  · obtain ⟨K, hK, hCK⟩ := h.isPaving.exists_isCircuit_of_indep hi
     have hfin := hK.inter_finite_of_isCocircuit hC
-    have hcon := h.paving_dual.eRank_le_eRk_add_one_of_dep hC.dep
+    have hcon := h.isPaving_dual.eRank_le_eRk_add_one_of_dep hC.dep
     grw [M✶.eRank_eq_top, hC.eRk_add_one_eq, ← encard_diff_add_encard_inter C K,
       inter_comm, encard_le_one_iff_subsingleton.2 hCK] at hcon
     simp [hfin.not_infinite] at hcon
   obtain ⟨K, hKC, hK⟩ := hd.exists_isCircuit_subset
   have hfin := hK.inter_finite_of_isCocircuit hC
   grw [inter_eq_self_of_subset_left hKC, ← encard_lt_top_iff, ← hK.eRk_add_one_eq,
-    ← h.paving.eRank_le_eRk_add_one_of_dep hK.dep] at hfin
+    ← h.isPaving.eRank_le_eRk_add_one_of_dep hK.dep] at hfin
   exact hfin.ne M.eRank_eq_top
 
 end Tame

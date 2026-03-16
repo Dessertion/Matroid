@@ -1,7 +1,7 @@
 import Matroid.Flat.Hyperplane
-import Matroid.Paving
+import Matroid.Uniform
 
-variable {α : Type} {M : Matroid α} {E I H B X : Set α} {e f : α} {Hs T : Set (Set α)}
+variable {α : Type*} {M : Matroid α} {E I H B X : Set α} {e f : α} {Hs T : Set (Set α)}
 
 
 namespace Matroid
@@ -151,6 +151,24 @@ lemma relax_spanning_iff {S} (h : M.IsLawfulRelaxation T) :
   refine ⟨fun h ↦ ⟨S, h, rfl⟩, fun ⟨X, hXT, hX⟩ ↦ ?_⟩
   rwa [← diff_diff_cancel_left hSE, ← hX, diff_diff_cancel_left (by grind)]
 
+@[simp]
+lemma relax_eRank_eq (h : M.IsLawfulRelaxation T) : (M.relax T h).eRank = M.eRank := by
+  obtain ⟨B, hB⟩ := M.exists_isBase
+  rw [← hB.encard_eq_eRank, ← IsBase.encard_eq_eRank (B := B)]
+  simp [relax_IsBase, hB]
+
+instance rankPos_relax [M.RankPos] (h : M.IsLawfulRelaxation T) : (M.relax T h).RankPos := by
+  rwa [← eRank_ne_zero_iff, relax_eRank_eq, eRank_ne_zero_iff]
+
+instance rankFinite_relax [M.RankFinite] (h : M.IsLawfulRelaxation T) :
+    (M.relax T h).RankFinite := by
+  rwa [← eRank_ne_top_iff, relax_eRank_eq, eRank_ne_top_iff]
+
+instance finite_relax [M.Finite] (h : M.IsLawfulRelaxation T) : (M.relax T h).Finite :=
+  ⟨M.ground_finite⟩
+
+  -- rw [finite_iff, ground_rel]
+
 -- /-- Change a single nonbase `H` of `M` to a base, provided `H` is a circuit-hyperplane -/
 -- def relax (M : Matroid α) (H : Set α) : Matroid α := M.relaxSet {H}
 
@@ -161,15 +179,6 @@ lemma relax_spanning_iff {S} (h : M.IsLawfulRelaxation T) :
 -- lemma relax_indep_iff (hH : M.IsHyperplane X) (hC : M.IsCircuit X) :
 --     (M.relax X).Indep I ↔ (M.Indep I ∨ I = X) := by
 --   rw [relax, relaxSet_indep_iff, mem_singleton_iff]; simp [hH, hC]
-
-lemma SparsePaving.relax_all_isUniform (h : M.SparsePaving) :
-    (M.relax _ (IsLawfulRelaxation.all M)).IsUniform := by
-  simp only [isUniform_iff, relax_E, relax_Indep, mem_setOf_eq, relax_spanning_iff]
-  grind [h.indep_or_spanning_or_isCircuitHyperplane]
-
-lemma IsLawfulRelaxation.isFreeBase_relax (h : M.IsLawfulRelaxation T) (hX : X ∈ T) :
-    (M.relax T h).IsFreeBase X :=
-  ⟨by simp [hX], fun B' hB'E hB' ↦ .inl <| (h hX).isBase_of_isExchange hB'E hB'.symm⟩
 
 end Relax
 
@@ -317,10 +326,9 @@ lemma IsLawfulTightening.isCircuitHyperplane_tighten (hT : M.IsLawfulTightening 
 def tightenSingle (hB : M.IsFreeBase B) (hBne : B.Nonempty) (hBE : B ≠ M.E) : Matroid α :=
   M.tighten {B} ⟨by simpa, by simp, by simpa using hBE.symm, by simpa using hBne.ne_empty.symm⟩
 
--- @[simp]
--- lemma IsFreeBase.tighten_isBase_iff (hB : M.IsFreeBase B) (hBne : B.Nonempty) (hBE : B ≠ M.E)
---     {B' : Set α} : (hB.tighten hBne hBE).IsBase B' ↔ M.IsBase B' ∧ B' ≠ B := by
---   simp [IsFreeBase.tighten]
+lemma IsLawfulRelaxation.isFreeBase_relax (h : M.IsLawfulRelaxation T) (hX : X ∈ T) :
+    (M.relax T h).IsFreeBase X :=
+  ⟨by simp [hX], fun B' hB'E hB' ↦ .inl <| (h hX).isBase_of_isExchange hB'E hB'.symm⟩
 
 lemma IsLawfulRelaxation.isLawfulTightening_relax (hT : M.IsLawfulRelaxation T) :
     (M.relax T hT).IsLawfulTightening T := by
@@ -346,18 +354,6 @@ lemma IsLawfulTightening.relax_tighten (hT : M.IsLawfulTightening T) :
   refine ext_isBase rfl ?_
   have : ∀ B ∈ T, M.IsBase B := fun B hB ↦ (hT.isFreeBase_of_mem hB).isBase
   grind [relax_E, tighten_E, relax_IsBase, tighten_IsBase]
-
-/-- A rank-`r` sparse paving matroid, specified by its set of circuit-hyperplanes.
-`H` should be any set of `r`-sets, no two differing by a single exchange. -/
-def finiteRankSparsePavingOn (E : Set α) {H : Set (Set α)} (r : ℕ)
-    (card_eq : ∀ C ∈ H, C.encard = r) (exchange : ∀ C ∈ H, ∀ C' ∈ H, ¬ C.IsExchange C')
-    (nonempty : ∀ C ∈ H, C.Nonempty) (ssubset_ground : ∀ C ∈ H, C ⊂ E) : Matroid α :=
-  (unifOn E r).tighten H ⟨
-    fun B hBH ↦ (unifOn_isUniform E r).isFreeBase <| by
-      rw [unifOn_isBase_iff _ (ssubset_ground B hBH).subset, card_eq B hBH]
-      grw [← card_eq B hBH, (ssubset_ground B hBH)],
-    by grind [Set.Pairwise], fun hEH ↦ (ssubset_ground E hEH).ne rfl, by grind [Nonempty.ne_empty]⟩
-
 
 
 end Tighten

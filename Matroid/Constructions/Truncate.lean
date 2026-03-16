@@ -1,5 +1,4 @@
-import Matroid.Extension.ProjectBy
-import Matroid.ForMathlib.FinDiff
+import Matroid.BaseExchange
 
 variable {α : Type*} {M : Matroid α} {E I B : Set α} {k : ℕ∞}
 
@@ -139,6 +138,9 @@ lemma truncate_indep_iff' : M.truncate.Indep I ↔ M.Indep I ∧ (M.IsBase I →
   simp only [truncate_indep_iff', and_congr_right_iff]
   exact fun _ ↦ ⟨fun h hB ↦ hB.nonempty.ne_empty (h hB), fun h hB ↦ by contradiction⟩
 
+lemma Indep.of_truncate (h : M.truncate.Indep I) : M.Indep I :=
+  (truncate_indep_iff'.2 h).1
+
 lemma truncate_dep_iff [M.RankPos] {D} :
     M.truncate.Dep D ↔ (M.Indep D → M.IsBase D) ∧ D ⊆ M.E := by
   rw [dep_iff, truncate_indep_iff, truncate_ground_eq, not_and, not_not]
@@ -152,8 +154,8 @@ lemma truncate_dep_iff [M.RankPos] {D} :
 
 instance {M : Matroid α} [M.Nonempty] : M.truncate.Nonempty := ⟨M.ground_nonempty⟩
 
-@[simp] lemma truncate_isBase_iff [M.RankPos] :
-    M.truncate.IsBase B ↔ ∃ e ∉ B, M.IsBase (insert e B) := by
+@[simp]
+lemma truncate_isBase_iff [M.RankPos] : M.truncate.IsBase B ↔ ∃ e ∉ B, M.IsBase (insert e B) := by
   refine ⟨fun h ↦ ?_, fun ⟨e, he, hBe⟩ ↦ ?_⟩
   · obtain ⟨hB, hBb⟩ := truncate_indep_iff.1 h.indep
     obtain ⟨B', hB', hBB'⟩ := hB.exists_isBase_superset
@@ -175,7 +177,15 @@ lemma IsBase.diff_singleton_truncate_isBase {e : α} (hB : M.IsBase B) (heB : e 
   rw [truncate_isBase_iff]
   exact ⟨e, by simp, by simpa [heB]⟩
 
-@[simp] lemma truncate_spanning_iff [M.RankPos] {S : Set α} :
+lemma Coindep.truncate_delete {D : Set α} (hD : M.Coindep D) :
+    (M ＼ D).truncate = M.truncate ＼ D := by
+  refine ext_indep rfl fun I hI ↦ ?_
+  rw [truncate_ground_eq, delete_ground, subset_diff] at hI
+  rw [delete_indep_iff, truncate_indep_iff', hD.delete_isBase_iff, and_iff_left hI.2,
+    truncate_indep_iff', delete_indep_iff, and_iff_left hI.2, and_iff_left hI.2]
+
+@[simp]
+lemma truncate_spanning_iff [M.RankPos] {S : Set α} :
     M.truncate.Spanning S ↔ ∃ e ∈ M.E, M.Spanning (insert e S) := by
   simp only [spanning_iff_exists_isBase_subset', truncate_isBase_iff, truncate_ground_eq,
     insert_subset_iff, ← and_assoc, exists_and_right, and_congr_left_iff]
@@ -208,12 +218,10 @@ lemma Spanning.truncate_spanning {S : Set α} (hS : M.Spanning S) : M.truncate.S
   obtain ⟨f, hf⟩ := exists_of_ssubset hssu
   exact ⟨f, hf, hS.superset (subset_insert _ _)⟩
 
-lemma Coindep.truncate_delete {D : Set α} (hD : M.Coindep D) :
-    (M ＼ D).truncate = M.truncate ＼ D := by
-  refine ext_indep rfl fun I hI ↦ ?_
-  rw [truncate_ground_eq, delete_ground, subset_diff] at hI
-  rw [delete_indep_iff, truncate_indep_iff', hD.delete_isBase_iff, and_iff_left hI.2,
-    truncate_indep_iff', delete_indep_iff, and_iff_left hI.2, and_iff_left hI.2]
+lemma IsHyperplane.truncate_spanning {H} (hH : M.IsHyperplane H) : M.truncate.Spanning H := by
+  rw [truncate_spanning_iff_of_ssubset hH.ssubset_ground]
+  obtain ⟨f, hf⟩ := exists_of_ssubset hH.ssubset_ground
+  exact ⟨f, hf, hH.spanning_of_ssuperset <| by grind⟩
 
 lemma truncate_restrict_of_not_spanning {R : Set α} (hSE : R ⊆ M.E) (hS : ¬ M.Spanning R) :
     (M.truncate ↾ R) = M ↾ R := by
@@ -222,12 +230,9 @@ lemma truncate_restrict_of_not_spanning {R : Set α} (hSE : R ⊆ M.E) (hS : ¬ 
   refine fun hIR _ hI ↦ (hS (hI.spanning.superset hIR)).elim
 
 lemma truncate_contract (M : Matroid α) (C : Set α) : (M ／ C).truncate = M.truncate ／ C := by
-  suffices aux : ∀ C ⊆ M.E, (M ／ C).truncate = M.truncate ／ C by
-    convert aux (C ∩ M.E) inter_subset_right using 1
-    simp
-    rw [← contract_inter_ground_eq, truncate_ground_eq]
-  clear C
-  intro C hCE
+  wlog hCE : C ⊆ M.E generalizing C with aux
+  · rw [← contract_inter_ground_eq, aux _ inter_subset_right, ← truncate_ground_eq,
+      contract_inter_ground_eq]
   obtain ⟨E, rfl⟩ | h := M.eq_loopyOn_or_rankPos'
   · simp
   by_cases hC : M.Spanning C
@@ -238,11 +243,7 @@ lemma truncate_contract (M : Matroid α) (C : Set α) : (M ／ C).truncate = M.t
       have heE := hB.subset_ground he
       exact ⟨e, hB.subset_ground he, hC.superset (subset_insert _ _)⟩
     simp [hC.contract_eq_loopyOn, hC'.contract_eq_loopyOn]
-
-  have hpos : (M ／ C).RankPos
-  · rwa [rankPos_iff_empty_not_spanning, contract_spanning_iff, empty_union,
-      and_iff_left (empty_disjoint _)]
-
+  have hpos : (M ／ C).RankPos := by  rwa [contract_rankPos_iff, ← not_spanning_iff]
   refine ext_spanning rfl fun S hS ↦ ?_
   simp only [truncate_ground_eq, contract_ground, subset_diff] at hS
   simp only [truncate_spanning_iff, contract_ground, mem_diff, ← singleton_union,
@@ -267,11 +268,26 @@ instance (M : Matroid α) [M.Nonempty] : M.truncate✶.RankPos := by
     not_exists, not_and]
   exact fun x hx hB ↦ hx <| hB.subset_ground (mem_insert ..)
 
-lemma truncate_eRank_add_one [M.RankPos] : M.truncate.eRank + 1 = M.eRank := by
+lemma truncate_eRank_add_one (M : Matroid α) [M.RankPos] : M.truncate.eRank + 1 = M.eRank := by
   obtain ⟨B, hB⟩ := M.truncate.exists_isBase
   rw [← hB.encard_eq_eRank]
   obtain ⟨e, heB, hB'⟩ := truncate_isBase_iff.1 hB
   rw [← hB'.encard_eq_eRank, encard_insert_of_notMem heB]
+
+lemma eRank_le_eRank_truncate_add_one (M : Matroid α) : M.eRank ≤ M.truncate.eRank + 1 := by
+  obtain ⟨E, rfl⟩ | h := M.exists_eq_loopyOn_or_rankPos
+  · simp
+  rw [truncate_eRank_add_one]
+
+lemma eRank_truncate_eq_eRank_sub_one (M : Matroid α) : M.truncate.eRank = M.eRank - 1 := by
+  obtain ⟨E, rfl⟩ | h := M.exists_eq_loopyOn_or_rankPos
+  · simp
+  rw [← M.truncate_eRank_add_one, ENat.add_tsub_cancel_right (by simp)]
+
+@[simp] lemma truncate_spanning_iff_eRank_contract_le {S : Set α} (hSE : S ⊆ M.E := by aesop_mat) :
+    M.truncate.Spanning S ↔ (M ／ S).eRank ≤ 1 := by
+  rw [← eRelRk_ground_eq_zero_iff, ← eRank_contract_eq_eRelRk_ground, ← truncate_contract,
+    eRank_truncate_eq_eRank_sub_one, tsub_eq_zero_iff_le]
 
 @[simp]
 lemma truncate_rankPos_iff : M.truncate.RankPos ↔ 2 ≤ M.eRank := by
@@ -293,20 +309,35 @@ lemma truncateTo_truncate (M : Matroid α) (k : ℕ) (hk : k + 1 ≤ M.eRank) :
   simp [hIk] at h
 
 lemma truncate_isCircuit_iff {C} [M.RankPos] :
-    M.truncate.IsCircuit C ↔ (M.IsCircuit C ∧ ¬ M.Spanning C) ∨ M.IsBase C := by
+    M.truncate.IsCircuit C ↔ (M.IsCircuit C ∧ M.Nonspanning C) ∨ M.IsBase C := by
   by_cases! hCE : ¬(C ⊆ M.E); grind
   simp only [isCircuit_iff_forall_ssubset, truncate_dep_iff, hCE, and_true, truncate_indep_iff]
   obtain (hCi | hCd) := M.indep_or_dep hCE
   · suffices M.IsBase C → ∀ ⦃I : Set α⦄, I ⊂ C → M.Indep I ∧ ¬M.IsBase I by simpa [hCi.not_dep, hCi]
     exact fun hCb I hIC ↦ ⟨hCi.subset hIC.subset, hCb.not_isBase_of_ssubset hIC⟩
   suffices (∀ x ⊂ C, M.Indep x) → ((∀ x ⊂ C, ¬M.IsBase x) ↔ ¬M.Spanning C) by
-    simpa [hCd.not_indep, IsEmpty.forall_iff, true_and, hCd,
+    simpa [nonspanning_iff, hCE, hCd.not_indep, IsEmpty.forall_iff, true_and, hCd,
       or_iff_left (show ¬M.IsBase C from fun h ↦ hCd.not_indep h.indep), forall_and]
   refine fun hCss ↦ ⟨fun h hsp ↦ ?_, fun h B hBC hB ↦ h <| hB.spanning_of_superset hBC.subset ⟩
   obtain ⟨B, hB, hBC⟩ := hsp.exists_isBase_subset
   obtain rfl | hssu := hBC.eq_or_ssubset
   · exact hCd.not_indep hB.indep
   exact h _ hssu hB
+
+/-- A version of `truncate_isCircuit_iff` with no `rankPos` assumption -/
+lemma truncate_isCircuit_iff' {C} : M.truncate.IsCircuit C ↔
+    ((M.IsCircuit C ∧ (M.Spanning C → C.Subsingleton)) ∨ (M.IsBase C ∧ C.Nonempty)) := by
+  obtain ⟨E, rfl⟩ | hpos := M.exists_eq_loopyOn_or_rankPos
+  · obtain hCE | hCE := C.eq_empty_or_nonempty
+    <;> simp +contextual [Nonempty.ne_empty, hCE]
+  rw [truncate_isCircuit_iff]
+  by_cases! hCE : ¬ C ⊆ M.E; grind
+  by_cases hC : M.Spanning C
+  · simp only [hC.not_nonspanning, and_false, false_or, hC, forall_const, hC.nonempty, and_true,
+      iff_or_self, and_imp]
+    refine fun hCd hCss ↦ False.elim <| ?_
+    exact (hC.nontrivial_of_dep hCd.dep).not_subsingleton hCss
+  simp [← not_spanning_iff hCE, hC, and_iff_left_of_imp IsBase.nonempty]
 
 end truncate
 
@@ -526,19 +557,6 @@ end circuitOn
 
 variable {I J B B' : Set α} {e f : α}
 
-lemma IsBase.isBase_of_indep_of_finDiff (hB : M.IsBase B) (hI : M.Indep I) (hBI : FinDiff B I) :
-    M.IsBase I := by
-  obtain ⟨B', hB', hIB'⟩ := hI.exists_isBase_superset
-  have hfin' : FinDiff B B' := by
-    rw [finDiff_iff, hB'.encard_diff_comm hB, and_iff_left rfl]
-    exact hBI.diff_finite.subset (diff_subset_diff_right hIB')
-  rwa [(hBI.symm.trans hfin').eq_of_subset hIB']
-
-lemma IsBase.isBase_of_spanning_of_finDiff {S : Set α} (hB : M.IsBase B) (hS : M.Spanning S)
-    (hBS : FinDiff B S) : M.IsBase S := by
-  rw [← M.dual_dual, dual_isBase_iff]
-  exact hB.compl_isBase_dual.isBase_of_indep_of_finDiff hS.compl_coindep <|
-    hBS.diff_right hB.subset_ground hS.subset_ground
 /--
 A `TruncateFamily` is a collection of nonempty bases of `M` such that,
 for any two bases of `M` that both contain bases for a common hyperplane,
@@ -614,7 +632,7 @@ lemma ToTruncate.finDiff {B B' : Set α} (hB : T.ToTruncate B) (hB' : M.IsBase B
   obtain h | h := (B \ B').eq_empty_or_nonempty
   · rw [diff_eq_empty] at h
     rwa [← hB.isBase.eq_of_subset_isBase hB' h]
-  obtain ⟨f, hf⟩ := hdiff.symm.nonempty_of_nonempty h
+  obtain ⟨f, hf⟩ := hdiff.symm.diff_nonempty_of_nonempty h
   obtain ⟨e, he, heB⟩ := hB'.exchange hB.isBase hf
   have hlt : ((insert e (B' \ {f})) \ B).encard < (B' \ B).encard := by
     rw [insert_diff_of_mem _ he.1, diff_diff_comm, ← encard_diff_singleton_add_one hf,

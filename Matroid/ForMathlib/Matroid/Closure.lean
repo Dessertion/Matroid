@@ -1,5 +1,7 @@
 import Mathlib.Combinatorics.Matroid.Closure -- inefficient import
 import Matroid.ForMathlib.Matroid.Dual
+import Matroid.ForMathlib.Matroid.Basic
+import Matroid.ForMathlib.Data.Set.Subsingleton
 
 namespace Matroid
 
@@ -33,6 +35,14 @@ structure Nonspanning (M : Matroid α) (X : Set α) : Prop where
 
 attribute [aesop unsafe 20% (rule_sets := [Matroid]), grind ->] Nonspanning.subset_ground
 
+@[simp]
+lemma loopyOn_not_nonspanning {E X : Set α} : ¬ (loopyOn E).Nonspanning X := by
+  simp [nonspanning_iff]
+
+@[simp]
+lemma freeOn_nonspanning_iff {E X : Set α} : (freeOn E).Nonspanning X ↔ X ⊂ E := by
+  simp [nonspanning_iff, ssubset_iff_subset_ne, and_comm]
+
 lemma nonspanning_dual_iff (hXE : X ⊆ M.E := by aesop_mat) :
     M✶.Nonspanning X ↔ M.Dep (M.E \ X) := by
   rw [nonspanning_iff, spanning_iff_compl_coindep, dual_coindep_iff, not_indep_iff, dual_ground,
@@ -41,6 +51,9 @@ lemma nonspanning_dual_iff (hXE : X ⊆ M.E := by aesop_mat) :
 lemma nonspanning_compl_dual_iff (hXE : X ⊆ M.E := by aesop_mat) :
     M✶.Nonspanning (M.E \ X) ↔ M.Dep X := by
   rw [nonspanning_dual_iff, diff_diff_cancel_left hXE]
+
+lemma Dep.nonspanning_compl_dual (hX : M.Dep X) : M✶.Nonspanning (M.E \ X) :=
+  (nonspanning_compl_dual_iff hX.subset_ground).2 hX
 
 lemma Nonspanning.closure_nonspanning (h : M.Nonspanning X) : M.Nonspanning (M.closure X) := by
   rw [nonspanning_iff, closure_spanning_iff, and_iff_left <| M.closure_subset_ground ..]
@@ -67,6 +80,20 @@ lemma Nonspanning.subset (h : M.Nonspanning X) (hYX : Y ⊆ X) : M.Nonspanning Y
 lemma not_nonspanning_iff (hXE : X ⊆ M.E := by aesop_mat) :
     ¬ M.Nonspanning X ↔ M.Spanning X := by
   rw [nonspanning_iff, and_iff_left hXE, not_not]
+
+lemma Spanning.not_nonspanning (hX : M.Spanning X) : ¬ M.Nonspanning X := by
+  rwa [not_nonspanning_iff]
+
+lemma Spanning.nonempty [M.RankPos] (hX : M.Spanning X) : X.Nonempty := by
+  obtain ⟨B, hB, hBX⟩ := hX.exists_isBase_subset
+  exact hB.nonempty.mono hBX
+
+lemma Spanning.nontrivial_of_dep [M.RankPos] (hX : M.Spanning X) (hXd : M.Dep X) :
+    X.Nontrivial := by
+  obtain ⟨B, hB, hBX⟩ := hX.exists_isBase_subset
+  obtain rfl | hBX := hBX.eq_or_ssubset
+  · exact False.elim <| hXd.not_indep hB.indep
+  exact hB.nonempty.nontrivial_of_ssubset hBX
 
 lemma not_spanning_iff (hXE : X ⊆ M.E := by aesop_mat) :
     ¬ M.Spanning X ↔ M.Nonspanning X := by

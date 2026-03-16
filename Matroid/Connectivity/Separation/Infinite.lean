@@ -109,10 +109,10 @@ lemma CyclicallyConnected.encard_le (h : M.CyclicallyConnected ⊤) :
     M.E.encard ≤ 2 * M.eRank + 1 := by
   by_contra! hlt
   obtain ⟨D, hDE, hD⟩ :=
-    exists_subset_encard_eq (k := M.eRank + 1) (s := M.E) (by enat_to_nat!; omega)
+    exists_subset_encard_eq (k := M.eRank + 1) (s := M.E) (by enat_to_nat!; lia)
   have hle' : M.eRank + 1 ≤ (M.E \ D).encard := by
     rw [← encard_diff_add_encard_of_subset hDE] at hlt
-    eomega
+    enat_to_nat! <;> lia
   obtain ⟨D', hD'E, hD'⟩ := exists_subset_encard_eq hle'
   have hrt : ¬ M.RankInfinite := by rw [← eRank_eq_top_iff]; enat_to_nat!
   refine (h.inter_nonempty_of_dep_dep ?_ ?_).not_disjoint (disjoint_sdiff_right.mono_right hD'E)
@@ -138,7 +138,7 @@ lemma unifOn_tutteConnected_top_iff {E : Set α} {k : ℕ} (hkE : k ≤ E.encard
     (unifOn E k).TutteConnected ⊤ ↔
     (E.encard = 2 * k ∨ E.encard + 1 = 2 * k ∨ E.encard = 2 * k + 1) := by
   have aux (s t : ℕ∞) : ((s = 2 * t) ∨ (s + 1 = 2 * t) ∨ (s = 2 * t + 1)) ↔
-      (2 * t ≤ s + 1 ∧ s ≤ 2 * t + 1) := by eomega
+      (2 * t ≤ s + 1 ∧ s ≤ 2 * t + 1) := by enat_to_nat; lia
   rw [aux]
   clear aux
   refine ⟨fun h ↦ ?_, fun ⟨hle, hle'⟩ ↦ ?_⟩
@@ -172,8 +172,9 @@ lemma unifOn_tutteConnected_iff {E : Set α} {r : ℕ} (hrE : r ≤ E.encard) :
   · exact hconn.mono le_top
   obtain ⟨hkr, hkrE⟩ := (or_iff_left hconn).1 h
   rw [unifOn_tutteConnected_top_iff hrE] at hconn
-  have : 2 * k + 2 ≤ E.encard := by eomega
-  rw [tutteConnected_iff_verticallyConnected_girth (by rw [unifOn_ground_eq]; eomega),
+  have : 2 * k + 2 ≤ E.encard := by enat_to_nat!; lia
+  rw [tutteConnected_iff_verticallyConnected_girth
+    (by rw [unifOn_ground_eq]; enat_to_nat!; lia),
     le_girth_iff, verticallyConnected_iff_forall]
   refine ⟨fun P hPconn hPsep ↦ ?_, fun C hC ↦ ?_⟩
   · simp_rw [isVerticalSeparation_iff_forall_nonspanning, ← Separation.not_spanning_iff,
@@ -181,7 +182,7 @@ lemma unifOn_tutteConnected_iff {E : Set α} {r : ℕ} (hrE : r ≤ E.encard) :
     rw [← (unifOn_ground_eq E (k := r)), ← eRank_add_eRank_dual,
       ← Indep.eConn_eq_of_compl_indep (I := P true), P.eConn_eq, unifOn_eRank_eq,
       min_eq_right hrE, add_comm, WithTop.add_le_add_iff_left (ENat.coe_ne_top r)] at hkrE
-    · eomega
+    · enat_to_nat! <;> lia
     · simpa [(hPsep true).le] using P.subset_ground
     rw [P.compl_true]
     simpa [(hPsep false).le] using P.subset_ground
@@ -201,10 +202,10 @@ lemma IsUniform.tutteConnected_iff [M.Tame] (h : M.IsUniform) :
   · have := M.tame_dual
     rw [← tutteConnected_dual_iff]
     apply aux h.dual (by simp [hle, hle']) hle' (by simpa)
-    exact h.sparsePaving.rankFinite_or_rankFinite_dual.elim (False.elim ∘ hfin) id
+    exact h.isSparsePaving.rankFinite_or_rankFinite_dual.elim (False.elim ∘ hfin) id
   have hrle := M.eRank_lt_top
   have hr := M.eRank_add_eRank_dual
-  rw [tutteConnected_iff_verticallyConnected_girth (by eomega), le_girth_iff,
+  rw [tutteConnected_iff_verticallyConnected_girth (by enat_to_nat! <;> lia), le_girth_iff,
     verticallyConnected_iff_forall]
   refine ⟨fun P hP hsep ↦ ?_, fun C hC ↦ ?_⟩
   · rw [isVerticalSeparation_iff_forall_nonspanning] at hsep
@@ -216,13 +217,13 @@ lemma IsUniform.tutteConnected_iff [M.Tame] (h : M.IsUniform) :
     grw [← hle', ← P.union_eq, encard_union_le, ← h1.eRk_eq_encard, ← h2.eRk_eq_encard] at hr
     have hconn := M.eConn_add_eRank_eq (X := P true)
     rw [P.eConn_eq, P.compl_eq, Bool.not_true] at hconn
-    enat_to_nat! <;> omega
+    enat_to_nat! <;> lia
   rwa [← hC.eRk_add_one_eq, (h.spanning_of_dep hC.dep).eRk_eq, ENat.add_one_le_add_one_iff]
 
 /-- Every tame, infinitely Tutte-connected matroid is finite. -/
 lemma TutteConnected.finite_of_tame [M.Tame] (hM : M.TutteConnected ⊤) : M.Finite := by
   wlog hfin : M.RankFinite generalizing M with aux
-  · obtain hfin | hfin := hM.isUniform.sparsePaving.rankFinite_or_rankFinite_dual
+  · obtain hfin | hfin := hM.isUniform.isSparsePaving.rankFinite_or_rankFinite_dual
     · exact aux hM (by infer_instance)
     have := M.tame_dual
     exact ⟨(aux hM.dual (by infer_instance)).ground_finite⟩
@@ -237,9 +238,10 @@ lemma tutteConnected_top_iff_of_tame [M.Tame] : M.TutteConnected ⊤ ↔
   obtain ⟨E, k, hkE, rfl, h'⟩ := hU.exists_eq_unifOn
   rw [unifOn_tutteConnected_top_iff hkE]
   rw [unifOn_ground_eq, unifOn_eRank_eq' hkE] at hle hle'
-  eomega
+  enat_to_nat!; lia
 
-lemma Paving.cyclicallyConnected (h : M.Paving) (hk : k < M.eRank) : M.CyclicallyConnected k := by
+lemma IsPaving.cyclicallyConnected (h : M.IsPaving) (hk : k < M.eRank) :
+    M.CyclicallyConnected k := by
   obtain rfl | ⟨k, rfl⟩ := k.eq_zero_or_exists_eq_add_one; simp
   refine cyclicallyConnected_iff_forall.2 fun P hPconn hP ↦ ?_
   rw [Separation.isCyclicSeparation_iff_forall] at hP
@@ -248,8 +250,9 @@ lemma Paving.cyclicallyConnected (h : M.Paving) (hk : k < M.eRank) : M.Cyclicall
     ← P.eConn_eq false, M.eConn_add_nullity_dual_eq_eRk (P false)] at hk
   exact hk.ne rfl
 
-lemma Paving.cyclicallyConnected_of_verticallyConnected (h : M.Paving)
-    (hconn : M.VerticallyConnected (k + 1)) (hk : k < M.eRank) : M.CyclicallyConnected (k + 1) := by
+lemma IsPaving.cyclicallyConnected_of_verticallyConnected (h : M.IsPaving)
+    (hconn : M.VerticallyConnected (k + 1)) (hk : k < M.eRank) :
+    M.CyclicallyConnected (k + 1) := by
   refine cyclicallyConnected_iff_forall.2 fun P hPconn hP ↦ ?_
   rw [Separation.isCyclicSeparation_iff_forall] at hP
   wlog hs : M.Spanning (P true) generalizing P with aux
@@ -261,7 +264,7 @@ lemma Paving.cyclicallyConnected_of_verticallyConnected (h : M.Paving)
     h.eRank_le_eRk_add_one_of_dep (hP false)] at hk
   exact hk.ne rfl
 
-lemma SparsePaving.tutteConnected_of_eRank_gt_eRank_dual_ge (h : M.SparsePaving)
+lemma IsSparsePaving.tutteConnected_of_eRank_gt_eRank_dual_ge (h : M.IsSparsePaving)
     (h1 : k < M.eRank) (h2 : k ≤ M✶.eRank) : M.TutteConnected k := by
   obtain rfl | ⟨k, rfl⟩ := k.eq_zero_or_exists_eq_add_one; simp
   rw [ENat.add_one_le_iff (by enat_to_nat)] at h2
@@ -272,15 +275,15 @@ lemma SparsePaving.tutteConnected_of_eRank_gt_eRank_dual_ge (h : M.SparsePaving)
     exact ⟨h'', h'⟩
   rw [← eRank_add_eRank_dual]
   enat_to_nat!
-  omega
+  lia
 
-lemma SparsePaving.tutteConnected_of_eRank_ge_eRank_dual_gt (h : M.SparsePaving)
+lemma IsSparsePaving.tutteConnected_of_eRank_ge_eRank_dual_gt (h : M.IsSparsePaving)
     (h1 : k ≤ M.eRank) (h2 : k < M✶.eRank) : M.TutteConnected k :=
   by simpa using (h.dual.tutteConnected_of_eRank_gt_eRank_dual_ge h2 (by simpa)).dual
 
 lemma VerticallyConnected.sparsePaving_of_cyclicallyConnected (hv : M.VerticallyConnected ⊤)
-    (hc : M.CyclicallyConnected ⊤) : M.SparsePaving := by
-  rw [sparsePaving_iff_forall_indep_or_spanning_or_isCircuit_isHyperplane]
+    (hc : M.CyclicallyConnected ⊤) : M.IsSparsePaving := by
+  rw [isSparsePaving_iff_forall_indep_or_spanning_or_isCircuitHyperplane]
   by_contra! hcon
   obtain ⟨X, hXE, hd, hns, hch⟩ := hcon
   rw [not_indep_iff] at hd

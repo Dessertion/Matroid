@@ -11,6 +11,11 @@ lemma Nontrivial.diff_singleton_nonempty (hs : s.Nontrivial) (x : α) : (s \ {x}
   rw [Ne, ← mem_singleton_iff, ← mem_diff, hs'] at hys
   simp at hys
 
+lemma Nonempty.nontrivial_of_ssubset (hs : s.Nonempty) (hst : s ⊂ t) : t.Nontrivial := by
+  obtain ⟨x, hx⟩ := hs
+  obtain ⟨y, hyt, hys⟩ := exists_of_ssubset hst
+  exact nontrivial_of_exists_ne (hst.subset hx) ⟨y, hyt, by rintro rfl; contradiction⟩
+
 lemma Subsingleton.subset_or_disjoint (hs : s.Subsingleton) (t : Set α) : s ⊆ t ∨ Disjoint s t := by
   obtain rfl | ⟨e, rfl⟩ := hs.eq_empty_or_singleton <;> simp [em]
 

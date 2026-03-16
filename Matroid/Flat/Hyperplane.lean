@@ -108,6 +108,20 @@ lemma isHyperplane_dual_iff (hH : H ⊆ M.E := by aesop_mat) :
   rw [← isCocircuit_compl_iff_isHyperplane]
   simp
 
+@[simp]
+lemma loopyOn_not_isHyperplane (E H : Set α) : ¬ (loopyOn E).IsHyperplane H := by
+  intro h
+  rw [← freeOn_dual_eq, isHyperplane_dual_iff (show H ⊆ (freeOn E).E from h.subset_ground)] at h
+  simp at h
+
+@[simp]
+lemma freeOn_isHyperplane_iff (E H : Set α) : (freeOn E).IsHyperplane H ↔ ∃ e ∈ E, H = E \ {e} := by
+  by_cases! hHE : ¬ H ⊆ E
+  · exact iff_of_false (fun h ↦ hHE h.subset_ground) <| by grind
+  rw [← loopyOn_dual_eq, isHyperplane_dual_iff hHE]
+  simp only [loopyOn_ground, loopyOn_isCircuit_iff]
+  grind
+
 lemma isHyperplane_compl_dual_iff (hH : H ⊆ M.E := by aesop_mat) :
     M✶.IsHyperplane (M.E \ H) ↔ M.IsCircuit H := by
   rw [← M.dual_ground, isHyperplane_compl_iff_isCocircuit, dual_isCocircuit_iff]
@@ -350,5 +364,30 @@ lemma Spanning.isHyperplane_restrict_iff {S : Set α} (hS : M.Spanning S) :
   exact M.subset_closure _ (hcl.subset.trans (inter_subset_right.trans hS.subset_ground))
 
 
+@[mk_iff]
+structure IsCircuitHyperplane (M : Matroid α) (C : Set α) : Prop where
+  isCircuit : M.IsCircuit C
+  isHyperplane : M.IsHyperplane C
+
+-- do aesop tag
+@[grind →]
+lemma IsCircuitHyperplane.subset_ground (hC : M.IsCircuitHyperplane C) : C ⊆ M.E :=
+  hC.1.subset_ground
+
+lemma IsCircuitHyperplane.compl_dual (hC : M.IsCircuitHyperplane C) :
+    M✶.IsCircuitHyperplane (M.E \ C) := by
+  refine ⟨hC.isHyperplane.compl_isCocircuit, hC.isCircuit.compl_isHyperplane_dual⟩
+
+lemma isCircuitHyperplane_dual_iff (hC : C ⊆ M.E := by aesop_mat) :
+    M✶.IsCircuitHyperplane C ↔ M.IsCircuitHyperplane (M.E \ C) :=
+  ⟨fun h ↦ by simpa using h.compl_dual, fun h ↦ diff_diff_cancel_left hC ▸ h.compl_dual⟩
+
+@[simp]
+lemma loopyOn_not_isCircuitHyperplane (E C : Set α) : ¬ (loopyOn E).IsCircuitHyperplane C := by
+  simp [isCircuitHyperplane_iff]
+
+@[simp]
+lemma freeOn_not_isCircuitHyperplane (E C : Set α) : ¬ (freeOn E).IsCircuitHyperplane C := by
+  simp [isCircuitHyperplane_iff]
 
 end IsHyperplane

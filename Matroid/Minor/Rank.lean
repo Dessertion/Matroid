@@ -488,6 +488,13 @@ lemma eRank_contract_eq_eRelRk_ground (M : Matroid α) (C : Set α) :
   rw [eRelRk_eq_eRk_contract, eRank_def, contract_ground, ← (M ／ C).eRk_inter_ground M.E,
     contract_ground, inter_eq_self_of_subset_right diff_subset]
 
+lemma eRank_contract_eq_zero_iff (hX : X ⊆ M.E := by aesop_mat) :
+    (M ／ X).eRank = 0 ↔ M.Spanning X := by
+  rw [eRank_contract_eq_eRelRk_ground, eRelRk_ground_eq_zero_iff]
+
+lemma Spanning.eRank_contract (hX : M.Spanning X) : (M ／ X).eRank = 0 := by
+  rwa [eRank_contract_eq_zero_iff]
+
 end Contract
 
 section Rank

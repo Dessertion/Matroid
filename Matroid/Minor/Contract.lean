@@ -50,6 +50,14 @@ lemma contract_nonspanning_iff (hC : C ⊆ M.E := by aesop_mat) :
   rw [and_iff_left hdj, nonspanning_iff, contract_spanning_iff, and_iff_left hdj, and_iff_left hXC,
     ← not_spanning_iff]
 
+lemma contract_rankPos_iff (hC : C ⊆ M.E := by aesop_mat) :
+    (M ／ C).RankPos ↔ M.Nonspanning C := by
+  rw [rankPos_iff_empty_not_spanning, contract_spanning_iff, empty_union, and_iff_left (by simp),
+    not_spanning_iff]
+
+lemma Nonspanning.contract_rankPos (hC : M.Nonspanning C) : (M ／ C).RankPos := by
+  rwa [contract_rankPos_iff]
+
 lemma girth_le_girth_contract_add (M : Matroid α) (C : Set α) :
     M.girth ≤ (M ／ C).girth + M.eRk C := by
   wlog hC : M.Indep C generalizing C with aux
