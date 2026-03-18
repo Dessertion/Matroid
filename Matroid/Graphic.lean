@@ -167,7 +167,7 @@ lemma cycleMatroid_edgeDelete (G : Graph α β) (F : Set β) :
   ext_isCircuit rfl fun I hI ↦ by simp
 
 lemma cycleMatroid_contract {φ} (hφ : H.connPartition.IsRepFun φ) (hHG : H ≤ G) :
-    (G /[φ, E(H)]).cycleMatroid = G.cycleMatroid ／ E(H) := by
+    (G /[E(H), φ]).cycleMatroid = G.cycleMatroid ／ E(H) := by
   apply_fun dual using dual_injective
   refine ext_indep rfl fun I hI ↦ ?_
   simp only [dual_ground, cycleMatroid_E, contract_edgeSet, subset_diff] at hI

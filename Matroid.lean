@@ -3,6 +3,7 @@ import Matroid.Axioms.Circuit
 import Matroid.Axioms.Closure
 import Matroid.Axioms.Flat
 import Matroid.Axioms.Rank
+-- import Matroid.BaseExchange
 import Matroid.Binary.Crossing
 import Matroid.Binary.Representation
 import Matroid.Bool
@@ -35,11 +36,13 @@ import Matroid.Connectivity.Skew
 import Matroid.Connectivity.Splitter.TutteTriangle
 -- import Matroid.Connectivity.Triangle
 import Matroid.Constructions.Matching
+-- import Matroid.Constructions.ModularSum
 import Matroid.Constructions.Project
 import Matroid.Constructions.Relax
 -- import Matroid.Constructions.SeriesParallel
 -- import Matroid.Constructions.Small
 import Matroid.Constructions.Truncate
+-- import Matroid.Constructions.relax'
 import Matroid.Equiv
 import Matroid.Extension.ExtendBy
 import Matroid.Extension.Guts
@@ -50,6 +53,7 @@ import Matroid.Extension.ProjectBy
 import Matroid.Extension.ProjectionBy
 import Matroid.Extension.Quotient
 -- import Matroid.Extremal.Covers
+-- import Matroid.Extremal.Thickness
 import Matroid.Finitize
 import Matroid.Flat.Basic
 import Matroid.Flat.Hyperplane
