@@ -135,7 +135,29 @@ lemma IsSummablePair.closure_biclosure (h : IsSummablePair M N T) :
   set G := N.closure X with hG
   rw [← M.closure_inter_ground, union_inter_distrib_right,
     inter_eq_self_of_subset_left (show F ⊆ M.E from M.closure_subset_ground ..),
-    h.closure_inter_left]
+    h.closure_inter_left, union_comm G]
+  have hmod := h.isModularFlat_left.distrib_of_subset_self (X := F) (Y := N.closure (F ∪ G) ∩ T)
+    (M.closure_isFlat ..) inter_subset_right
+  intro e he
+  by_cases heT : e ∈ T
+  · refine mem_of_mem_of_subset (hmod.subset ⟨heT, he⟩) ?_
+    grw [h.closure_subset_closure (by grind), ← subset_union_right (s := M.closure (F ∪ G)),
+      union_eq_self_of_subset_left, inter_subset_left, closure_closure]
+    grw [subset_inter_iff, and_iff_left inter_subset_left, ← subset_union_left,
+      hF, inter_comm, ← h.closure_inter_right, inter_ground_subset_closure]
+  left
+
+  have P : Set α := sorry
+  have Q : Set α := sorry
+  have' := h.isModularFlat_left.distrib_of_subset_self (X := P) (Y := Q)
+    -- union_comm, inter_comm _ T, ← inter_self T, inter_assoc]
+  -- have' := (h.isModularFlat_left.isModularPair (F := F) (M.closure_isFlat X)).distrib_of_subset_left
+  --   (Y := N.closure (F ∪ G) ∩ T) (h.isModularFlat_left.isFlat) inter_subset_right
+
+  -- have' := h.isModularFlat_left.distrib_of_subset_self (Y := N.closure (F ∪ G) ∩ T) (X := F)
+  --   (closure_isFlat ..) inter_subset_right
+
+  -- (h.isFlat_left_closure_right_inter (F ∪ G))
 
 
 
