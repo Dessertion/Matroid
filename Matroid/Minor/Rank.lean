@@ -388,6 +388,11 @@ lemma eRelRk_union_add_eRelRk_union_le_eRelRk_inter_union (X Y : Set α) :
   · apply eRelRk_union_le_eRelRk_inter_left
   apply eRelRk_union_le_eRelRk_inter_right
 
+
+lemma RankPos.of_delete (h : (M ＼ D).RankPos) : M.RankPos := by
+  rw [← eRank_ne_zero_iff, ← ENat.one_le_iff_ne_zero] at *
+  grw [h, eRank_delete_le]
+
 -- lemma eRelRk_le_eRelRk_left_add_eRelRk_right (M : Matroid α) {A B : Set α} (hXA : X ⊆ A)
 --     (hXB : X ⊆ B) (hAY : A ⊆ Y) (hBY : B ⊆ Y) :
 --     M.eRelRk X Y ≤ M.eRelRk A Y + M.eRelRk B Y := by

@@ -1132,6 +1132,18 @@ lemma NoUniformMinor.lt_of_isoMinor {N : Matroid α} {a b : ℕ} {b' : ℕ∞} (
   obtain ⟨φ⟩ := unif_isoRestr_unifOn (a := a) hle
   exact h.elim (IsoMinor.trans φ.isoMinor hNM)
 
+@[simp]
+lemma noUniformMinor_self_iff : M.NoUniformMinor a a ↔ M.eRank < a := by
+  rw [← not_iff_not, NoUniformMinor, not_isEmpty_iff, not_lt]
+  refine ⟨fun ⟨e⟩ ↦ ?_, fun h ↦ ?_⟩
+  · grw [← e.eRank_le, unif_eRank_eq, min_self]
+  obtain ⟨B, hB⟩ := M.exists_isBase
+  obtain ⟨I, hIB, hI⟩ := B.exists_subset_encard_eq (h.trans_eq hB.encard_eq_eRank.symm)
+  have him := (M.restrict_isRestriction _ (hIB.trans hB.subset_ground)).isMinor
+  refine ⟨Iso.transIsoMinor (Iso.symm (Nonempty.some ?_)) him⟩
+  rw [nonempty_iso_unif_iff]
+  exact ⟨I, by rw [unifOn_eq_of_le hI.le, (hB.indep.subset hIB).restrict_eq_freeOn], hI⟩
+
 end IsoMinor
 
 

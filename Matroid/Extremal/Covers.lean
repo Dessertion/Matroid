@@ -312,7 +312,7 @@ def IsRankCover (M : Matroid α) (k : ℕ∞) (T : Set (Set α )) : Prop :=
     M.IsCover (fun M X ↦ M.eRk X ≤ k) T
 
 lemma IsRankCover_iff_IsCover (M : Matroid α) (k : ℕ∞) (T : Set (Set α )) :
-    M.IsRankCover k T ↔ M.IsCover (fun M X ↦ M.eRk X ≤ k ) T := Iff.rfl
+    M.IsRankCover k T ↔ M.IsCover (fun M X ↦ M.eRk X ≤ k) T := Iff.rfl
 
 lemma IsRankCover_iff (M : Matroid α) (k : ℕ∞) (T : Set (Set α )) :
     M.IsRankCover k T ↔ ⋃₀ T = M.E ∧ (∀ F ∈ T, M.eRk F ≤ k) := by
@@ -417,29 +417,14 @@ lemma IsCover.delete (hT : M.IsCover (fun M X ↦ M.eRk X ≤ k) T) (D : Set α)
   exact hT.pProp F' hF'
 
 --Help
-lemma coverNumber_eRank [M.Nonempty] :
-    M.coverNumber (fun M X ↦ M.eRk X ≤ M.eRank ) = 1 := by
-  have h2 : 1 ≤ M.coverNumber (fun M X ↦ M.eRk X ≤ M.eRank ) :=
-    M.coverNumer_positive (fun M X ↦ M.eRk X ≤ M.eRank )
-  have h1 := IsRankCover_ground M
-  rw[ M.IsRankCover_iff_IsCover ] at h1
-  have h3 := h1.coverNumber_le
-  simp only [encard_singleton] at h3
-  sorry
+lemma coverNumber_eRank [M.Nonempty] : M.coverNumber (fun M' X ↦ M'.eRk X ≤ M.eRank) = 1 := by
+  have h2 : 1 ≤ M.coverNumber (fun M' X ↦ M'.eRk X ≤ M.eRank ) :=
+    M.coverNumer_positive (fun M' X ↦ M'.eRk X ≤ M.eRank )
+  refine h2.antisymm' ?_
+  simpa using (IsRankCover_ground M).coverNumber_le
 
 --Need approval
-lemma Delete_loops_RankPos [M.RankPos] : (M ＼ M.loops).RankPos := by
-  rw[delete_loops_eq_removeLoops]
-  refine { empty_not_isBase := ?_ }
-  rw[Matroid.removeLoops_isBase_eq]
-  exact RankPos.empty_not_isBase
 
-lemma DeleteRankPos (h : (M ＼ D).RankPos ) : M.RankPos := by
-  refine { empty_not_isBase := ?_ }
-  by_contra hc
-  exact (iff_false_intro (RankPos.empty_not_isBase )).mp (delete_isBase_iff.mpr
-    (Matroid.IsBasis.isBasis_subset (isBasis_ground_iff.mpr hc )
-    (empty_subset (M.E \ D) ) (diff_subset) ))
 
 
 lemma coverNumber_delete_loop (hne : (M ＼ D).Nonempty) (hk : 1 ≤ k) (hD : D ⊆ M.loops ) :
@@ -709,10 +694,16 @@ lemma coverNumber_rank_Frombase [M.RankFinite] {a b : ℕ} (ha : 1 ≤ a)
     (Nat.choose b a) * M.coverNumber (fun M X ↦ M.eRk X ≤ (a + 1)) := by
   sorry
 
-lemma coverNumber_Bound [M.RankFinite] {a b : ℕ} (ha : 1 ≤ a) (hb : a ≤ b)
+lemma coverNumber_Bound {a b : ℕ} (ha : a ≠ 0) (hb : a ≤ b)
     (hM : NoUniformMinor M ( a + 1 ) (b + 1)) :
     M.coverNumber (fun M X ↦ M.eRk X ≤ a) ≤ (Nat.choose b a)^(M.eRank - a) := by
-
+  obtain htop | hfin := eq_or_ne M.eRank ⊤
+  · grw [htop, ENat.top_sub_coe, ENat.epow_top, ← le_top]
+    obtain rfl | hlt := hb.eq_or_lt
+    · simp [noUniformMinor_self_iff, htop] at hM
+    rw [← ENat.coe_one, ENat.coe_lt_coe]
+    suffices b.choose a ≠ 0 ∧ b.choose a ≠ 1 by lia
+    exact ⟨(Nat.choose_pos hlt.le).ne.symm, by simp [Nat.choose_eq_one_iff, hlt.ne.symm, ha]⟩
   suffices hn : ∀ n : ℕ, M.eRank = n + a + 1 →
       M.coverNumber (fun M X ↦ M.eRk X ≤ a) ≤ (Nat.choose b a)^(n + 1 )
   ·
@@ -722,7 +713,7 @@ lemma coverNumber_Bound [M.RankFinite] {a b : ℕ} (ha : 1 ≤ a) (hb : a ≤ b)
   | zero => sorry
   | succ n IH => sorry
 
-
+-- change `ha` to `a ≠ 0`.
 lemma coverNumber_Bound_contract [M.RankFinite] {a b : ℕ} (ha : 1 ≤ a)
     (hM : NoUniformMinor M ( a + 1 ) (b + 1)) (hC : C ⊂ M.E)  :
     M.coverNumber (fun M X ↦ M.eRk X ≤ a) ≤
@@ -740,10 +731,9 @@ lemma coverNumber_Bound_contract [M.RankFinite] {a b : ℕ} (ha : 1 ≤ a)
       (ENat.one_le_coe.mpr ha ) ((eRk_eq_zero_iff (subset_of_ssubset hC)).1 hn.symm )]
   | succ n IH =>
   grw[coverNumber_rank_Frombase ha hM ]
-  have hresP : (M ↾ C).RankPos := by
-    refine (eRank_ne_zero_iff (M ↾ C)).mp ?_
-    simp only [eRank_restrict, ne_eq, ← hn]
-    exact not_eq_of_beq_eq_false rfl
+  have hresP : (M ↾ C).RankPos :=
+    (eRank_ne_zero_iff (M ↾ C)).mp <| by simp [eRank_restrict, ne_eq, ← hn]
+
   obtain ⟨e, heC ⟩ := exists_isNonloop (M ↾ C)
   obtain ⟨heC1, heC2 ⟩ := restrict_isNonloop_iff.1 heC
   have heN : (M／ {e}).Nonempty := by
@@ -771,6 +761,25 @@ lemma coverNumber_Bound_contract [M.RankFinite] {a b : ℕ} (ha : 1 ≤ a)
   nth_rw 1 [ ←ENat.epow_one (x := ↑(b.choose a)), ←ENat.epow_natCast,
     ←ENat.epow_add (x :=  ↑(b.choose a)) (y := 1) (z := n ), ←ENat.coe_one, ←ENat.coe_add,
     ENat.epow_natCast, add_comm ]
+
+
+-- change `ha` to `a ≠ 0`.
+lemma coverNumber_Bound_contract' {M : Matroid α} {C : Set α} {a b : ℕ} (ha : 1 ≤ a)
+    (hM : NoUniformMinor M (a + 1) (b + 1)) (hC : C ⊂ M.E)  :
+    M.coverNumber (fun M X ↦ M.eRk X ≤ a) ≤
+    (Nat.choose b a)^(M.eRk C) * (M ／ C).coverNumber (fun M X ↦ M.eRk X ≤ a) := by
+  obtain htop | hlt := eq_or_ne (M.eRk C) ⊤
+  · sorry
+  have hresP : (M ↾ C).RankPos := sorry
+    -- (eRank_ne_zero_iff (M ↾ C)).mp <| by simp [eRank_restrict, ne_eq, ← hn]
+  obtain ⟨e, heC⟩ : ∃ e, (M ↾ C).IsNonloop e := exists_isNonloop (M ↾ C)
+  rw [restrict_isNonloop_iff] at heC
+  have h' : (M ／ {e}).eRk (C \ {e}) < M.eRk C := sorry
+  have ih := coverNumber_Bound_contract' (M := M ／ {e}) (C := C \ {e}) (a := a) (b := b) ha sorry
+    sorry
+  sorry
+termination_by M.eRk C
+
 
 end Rank
 

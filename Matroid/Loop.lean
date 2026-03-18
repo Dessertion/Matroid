@@ -141,6 +141,11 @@ lemma removeLoops_ground_eq_diff : M.removeLoops.E = M.E \ M.loops := by
   rw [and_comm]
   rfl
 
+instance removeLoops_rankPos [M.RankPos] : M.removeLoops.RankPos := by
+  refine { empty_not_isBase := ?_ }
+  rw[Matroid.removeLoops_isBase_eq]
+  exact RankPos.empty_not_isBase
+
 /-- remove the coloops of a matroid `M`. -/
 def removeColoops (M : Matroid α) := M✶.removeLoops✶
 
