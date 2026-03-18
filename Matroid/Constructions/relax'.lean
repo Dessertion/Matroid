@@ -1,7 +1,6 @@
 import Matroid.BaseExchange
-import Matroid.Uniform
 
-variable {α : Type*} {M : Matroid α} {E I H B X : Set α} {e f : α} {Hs T : Set (Set α)}
+variable {α : Type*} {M : Matroid α} {E C I H B X : Set α} {e f : α} {Hs T : Set (Set α)}
 
 
 namespace Matroid
@@ -37,8 +36,16 @@ lemma IsBase.exists_exchange_of_isCircuitHyperplane (hB : M.IsBase B) (hH : M.Is
   rwa [← hBH, ← hfe]
 
 /-- `M.IsLawfulRelaxation T` means that `T` is a set of circuit-hyperplanes of `M`. -/
-def IsLawfulRelaxation (M : Matroid α) (T : Set (Set α)) : Prop :=
-  ∀ ⦃X⦄, X ∈ T → M.IsCircuitHyperplane X
+structure IsLawfulRelaxation (M : Matroid α) (T : Set (Set α)) : Prop where
+  subset_ground : ∀ ⦃C⦄, C ∈ T → C ⊆ M.E
+  not_isBase_of_mem : ∀ ⦃C⦄, C ∈ T → ¬ M.IsBase C
+  isBase_of_isExchange_of_mem : ∀ ⦃X B⦄, X ∈ T → X.IsExchange B → M.IsBase B
+
+lemma IsLawfulRelaxation.isCircuit (h : M.IsLawfulRelaxation T) (hC : C ∈ T) : M.IsCircuit C := by
+  _
+
+lemma IsLawfulRelaxation.isCircuitHyperplane (h : M.IsLawfulRelaxation T) (hC : C ∈ T)
+    (hC : M.IsCircuit M.E → C ≠ M.E) : M.IsCircuitHyperplane
 
 @[grind →]
 lemma IsLawfulRelaxation.ssubset_ground (h : M.IsLawfulRelaxation T) (hX : X ∈ T) : X ⊂ M.E :=
@@ -116,7 +123,8 @@ lemma IsLawfulRelaxation.dual (h : M.IsLawfulRelaxation T) :
   exact (h hC).compl_dual
 
 @[simp]
-lemma relax_dual (h : M.IsLawfulRelaxation T) : (M.relax T h)✶ = M✶.relax _ h.dual := by
+lemma IsLawfulRelaxation.matroid_dual (h : M.IsLawfulRelaxation T) :
+    (M.relax T h)✶ = M✶.relax _ h.dual := by
   refine ext_isBase rfl fun B (hBE : B ⊆ M.E) ↦ ?_
   simp only [relax_E, hBE, dual_isBase_iff, relax_IsBase, mem_image]
   convert Iff.rfl
@@ -129,7 +137,7 @@ lemma relax_dual (h : M.IsLawfulRelaxation T) : (M.relax T h)✶ = M✶.relax _ 
 lemma relax_spanning_iff {S} (h : M.IsLawfulRelaxation T) :
     (M.relax T h).Spanning S ↔ M.Spanning S ∨ S ∈ T := by
   by_cases! hSE : ¬ S ⊆ M.E; grind
-  rw [spanning_iff_compl_coindep, spanning_iff_compl_coindep, Coindep, relax_dual, Coindep]
+  rw [spanning_iff_compl_coindep, spanning_iff_compl_coindep, Coindep, h.matroid_dual, Coindep]
   simp only [relax_E, relax_Indep, mem_image]
   convert Iff.rfl
   refine ⟨fun h ↦ ⟨S, h, rfl⟩, fun ⟨X, hXT, hX⟩ ↦ ?_⟩
@@ -189,47 +197,30 @@ lemma IsLawfulRelaxation.contract_delete (h : M.IsLawfulRelaxation T) (C D : Set
   rw [contract_ground, diff_diff, union_diff_cancel hHT.2.1.subset]
   exact hHT.2.2
 
-
-
-/-- Relaxation commutes with deletion; if `T` is a set of circuit-hyperplanes of `M`,
-and `T₀` is the subset of `T` that survive as circuit-hyperplanes in a deletion `M ＼ D`,
-then the relaxation of `T₀` in `M ＼ D` is obtained from that of `T` in `M` by deleting `D`.
-
-Unfortunately, there is one technical exception; if `C ∈ T`, and `D = M.E \ C`,
-then `C` is a circuit but not circuit-hyperplane of `M ＼ D`, so there are no relaxations at all
-in `M ＼ D`. However, relaxing `C` first then deleting `D` gives a free matroid.   -/
-lemma relax_delete (h : M.IsLawfulRelaxation T) {D} (hD : D ⊆ M.E := by aesop_mat)
-    (hDT : M.E \ D ∉ T) :
-    (M.relax T h) ＼ D = (M ＼ D).relax {H | H ∈ T ∧ D ⊂ M.E \ H} (h.delete D) := by
-  refine ext_indep rfl fun I (hI : I ⊆ M.E \ D) ↦ ?_
-  rw [subset_diff] at hI
-  have hssu : I ∈ T → D ⊂ M.E \ I := fun hIT ↦ ssubset_of_ne_of_subset
-    (fun hss ↦ hDT (by rwa [hss, diff_diff_cancel_left hI.1])) <| by grind
-  simp [hI, and_iff_left_of_imp hssu]
-
-/- Relaxation commutes with contraction, except in the special case where the contract-set
-is equal to one of the relaxed sets. -/
-lemma relax_contract (h : M.IsLawfulRelaxation T) {C} (hC : C ∉ T) (hCE : C ⊆ M.E := by aesop_mat) :
+lemma relax_contract (h : M.IsLawfulRelaxation T) (C : Set α) :
     (M.relax T h) ／ C = (M ／ C).relax ((· \ C) '' {H | H ∈ T ∧ C ⊂ H}) (h.contract C) := by
-  rw! [← dual_inj, dual_contract, relax_dual, relax_delete, ← dual_contract, relax_dual]
-  · convert rfl using 2
-    ext X
-    simp only [mem_image, mem_setOf_eq]
-    grind
-  simp only [dual_ground, mem_image, not_exists, not_and]
-  refine fun X hXT heq ↦ hC ?_
-  rwa [← diff_diff_cancel_left hCE, ← heq, diff_diff_cancel_left (h.ssubset_ground hXT).subset]
+  sorry
 
-/- Relaxation commutes with deleting coindependent sets of `M` -/
-lemma relax_delete_of_coindep (h : M.IsLawfulRelaxation T) {D} (hD : M.Coindep D) :
-    (M.relax T h) ＼ D = (M ＼ D).relax {H | H ∈ T ∧ D ⊂ M.E \ H} (h.delete D) :=
-  relax_delete _ hD.subset_ground fun hmem ↦ hD.compl_spanning.not_nonspanning <|
-    (h hmem).isHyperplane.nonspanning
+lemma relax_delete (h : M.IsLawfulRelaxation T) (D : Set α) (hD : D ⊆ M.E := by aesop_mat) :
+    (M.relax T h) ＼ D = (M ＼ D).relax {H | H ∈ T ∧ D ⊂ M.E \ H} (h.delete D) := by
+  refine ext_indep rfl ?_
+  simp +contextual only [delete_ground, relax_E, subset_diff, delete_indep_iff, relax_Indep,
+    and_true, ssubset_iff_subset_not_subset, disjoint_comm (a := D), diff_subset_iff, sep_and,
+    mem_inter_iff, mem_setOf_eq, iff_def, and_imp]
+  intro I hI hID
+  by_cases hIT : I ∈ T
+  · simp [hIT]
+    have := h hIT
+  by_cases hI : M.Indep I
+  . simp [hI]
+  simp [hI]
+  by_cases hIT : I ∈ T
+  simp [hIT, hD]
+  sorry
+  simp [hIT]
 
-/- Relaxation commutes with contracting independent sets of `M` -/
-lemma relax_contract_of_indep (h : M.IsLawfulRelaxation T) {C} (hC : M.Indep C) :
-    (M.relax T h) ／ C = (M ／ C).relax ((· \ C) '' {H | H ∈ T ∧ C ⊂ H}) (h.contract C) :=
-  relax_contract h (fun hCT ↦ hC.not_dep (h hCT).isCircuit.dep) hC.subset_ground
+
+
 
 end Relax
 

@@ -1,7 +1,7 @@
 import Matroid.Extension.ProjectBy
 import Matroid.ForMathlib.FinDiff
 
-variable {α : Type*} {M : Matroid α} {E I B C X Y : Set α} {k : ℕ∞} {e f : α}
+variable {α : Type*} {M : Matroid α} {E I B C H X Y : Set α} {k : ℕ∞} {e f : α}
 
 namespace Matroid
 
@@ -86,3 +86,31 @@ lemma isAntichain_setOf_finDiff_isBase (M : Matroid α) :
 lemma IsBase.finDiff_iff_encard_eq_eRank [M.RankFinite] (hB : M.IsBase B) :
     FinDiff B X ↔ X.encard = M.eRank := by
   rw [hB.finite.finDiff_iff_encard_eq, eq_comm, hB.encard_eq_eRank]
+
+lemma IsCircuitHyperplane.insert_diff_singleton_isBase (hH : M.IsCircuitHyperplane H)
+    (he : e ∈ H) (hf : f ∈ M.E \ H) : M.IsBase (insert f (H \ {e})) := by
+  have hclosure := hH.isHyperplane.closure_insert_eq hf.2 hf.1
+  rw [← closure_insert_closure_eq_closure_insert, ← hH.isCircuit.closure_diff_singleton_eq e,
+    closure_insert_closure_eq_closure_insert,
+    ← spanning_iff_closure_eq (insert_subset hf.1 (diff_subset.trans hH.subset_ground))] at hclosure
+  apply hclosure.isBase_of_indep
+  rw [← (hH.isCircuit.diff_singleton_indep he).notMem_closure_iff_of_notMem (fun hf' ↦ hf.2 hf'.1),
+    hH.isCircuit.closure_diff_singleton_eq e, hH.isHyperplane.isFlat.closure]
+  exact hf.2
+
+lemma IsCircuit.isHyperplane_of_forall_isBase_of_isExchange (hC : M.IsCircuit C)
+    (hex : ∀ B ⊆ M.E, B.IsExchange C → M.IsBase B) (hCE : C ⊂ M.E) : M.IsHyperplane C := by
+  obtain ⟨f, hfE, hfC⟩ := exists_of_ssubset hCE
+  obtain ⟨e, heC⟩ := hC.nonempty
+  have hb := hex (insert f (C \ {e})) (by grind) (isExchange_diff_insert heC hfC).symm
+  convert hb.isHyperplane_of_closure_diff_singleton (mem_insert ..)
+  rw [insert_diff_self_of_notMem (by grind)]
+  refine (hC.subset_closure_diff_singleton e).antisymm fun x hx ↦ by_contra fun hxC ↦ ?_
+  have hb' := hex (insert x (C \ {e})) (by grind) (isExchange_diff_insert heC hxC).symm
+  rw [(hC.diff_singleton_indep heC).mem_closure_iff_of_notMem (by grind)] at hx
+  exact hx.not_indep hb'.indep
+
+lemma IsCircuitHyperplane.isBase_of_isExchange (hH : M.IsCircuitHyperplane H) (hB : B ⊆ M.E)
+    (hHB : H.IsExchange B) : M.IsBase B := by
+  obtain ⟨e, he, f, hf, rfl⟩ := hHB.exists
+  apply hH.insert_diff_singleton_isBase he.1 (by grind)

@@ -8,7 +8,7 @@ structure FlatMatroid (α : Type*) where
   IsFlat : Set α → Prop
   isFlat_sInter : ∀ Fs : Set (Set α), (∀ F ∈ Fs, IsFlat F) → IsFlat (⋂₀ Fs ∩ E)
   isFlat_partition : ∀ F e, IsFlat F → e ∈ E → e ∉ F →
-    ∃! F', e ∈ F' ∧ Minimal (fun X ↦ F ⊂ X ∧ IsFlat X) F'
+    ∃ F', e ∈ F' ∧ Minimal (fun X ↦ F ⊂ X ∧ IsFlat X) F'
   Indep : Set α → Prop
   indep_iff : ∀ ⦃I⦄, Indep I ↔ (∀ e ∈ I, ∃ F, IsFlat F ∧ I ∩ F = I \ {e}) ∧ I ⊆ E
   indep_maximal : ∀ ⦃X⦄, X ⊆ E → Matroid.ExistsMaximalSubsetProperty Indep X
@@ -65,6 +65,35 @@ lemma IsFlat.closure (hF : M.IsFlat F) : M.closure F = F :=
 lemma Indep.subset_ground (hI : M.Indep I) : I ⊆ M.E :=
   (M.indep_iff.1 hI).2
 
+/-- An alternative constructor for `FlatMatroid` that uses `iInter` instead of `sInter`.
+Maybe `isFlat_ground` is redundant, but it's easy enough to supply in any reasonable case.  -/
+@[simps]
+protected def of_iInter.{u} {α : Type u} (E : Set α) (IsFlat : Set α → Prop)
+  (isFlat_ground : IsFlat E)
+  (isFlat_iInter : ∀ {ι : Type u} [Nonempty ι] (F : ι → Set α),
+    (∀ i, IsFlat (F i)) → IsFlat (⋂ i, F i))
+  (isFlat_partition : ∀ F e, IsFlat F → e ∈ E → e ∉ F →
+    ∃ F', e ∈ F' ∧ Minimal (fun X ↦ F ⊂ X ∧ IsFlat X) F')
+  (Indep : Set α → Prop)
+  (indep_iff : ∀ ⦃I⦄, Indep I ↔ (∀ e ∈ I, ∃ F, IsFlat F ∧ I ∩ F = I \ {e}) ∧ I ⊆ E)
+  (indep_maximal : ∀ ⦃X⦄, X ⊆ E → Matroid.ExistsMaximalSubsetProperty Indep X)
+  (subset_ground : ∀ F, IsFlat F → F ⊆ E) : FlatMatroid α where
+    E := E
+    IsFlat := IsFlat
+    isFlat_sInter := by
+      intro Fs hFs
+      obtain rfl | hne := Fs.eq_empty_or_nonempty
+      · simpa
+      have hne' := Nonempty.to_subtype hne
+      rw [inter_eq_self_of_subset_left, sInter_eq_iInter]
+      · apply isFlat_iInter _ (by simpa)
+      grw [sInter_subset_of_mem hne.some_mem, subset_ground _ (hFs _ hne.some_mem)]
+    isFlat_partition := isFlat_partition
+    Indep := Indep
+    indep_iff := indep_iff
+    indep_maximal := indep_maximal
+    subset_ground := subset_ground
+
 lemma mem_closure_insert_self (M : FlatMatroid α) (heE : e ∈ M.E) (X : Set α) :
     e ∈ M.closure (insert e X) := by
   rw [← singleton_subset_iff]
@@ -74,7 +103,7 @@ lemma closure_insert_minimal (M : FlatMatroid α) (X : Set α) (e : α) (heE : e
     (heX : e ∉ M.closure X) :
     Minimal (fun F ↦ M.closure X ⊂ F ∧ M.IsFlat F) (M.closure (insert e X)) := by
   have h_ex := M.isFlat_partition _ e (M.closure_isFlat X) heE heX
-  obtain ⟨F₀, heF₀, hF₀⟩ := h_ex.exists
+  obtain ⟨F₀, heF₀, hF₀⟩ := h_ex
   convert hF₀
 
   refine subset_antisymm (sInter_subset_of_mem ⟨?_, hF₀.prop.2⟩) ?_
@@ -104,35 +133,25 @@ protected def closureMatroid (M : FlatMatroid α) : ClosureMatroid α where
   closure_subset_closure' := fun _ _ h _ ↦ M.closure_subset_closure h
   closure_closure_eq_closure' _ _ := M.closure_closure _
   closure_exchange := by
-
     simp only [mem_diff, and_imp]
     refine fun X e f hX heE hfE hfeX hfX ↦ ?_
-
     have heXcl : e ∉ M.closure X := by
       refine fun heXcl ↦ hfX (mem_of_mem_of_subset hfeX ?_)
       rw [← M.closure_closure X]
       exact M.closure_subset_closure (insert_subset heXcl (M.subset_closure hX))
-
     have heX : e ∉ X := notMem_subset (M.subset_closure hX) heXcl
     refine ⟨by_contra fun hcon ↦ ?_, heX⟩
-
     suffices hcl : M.closure (insert e X) = M.closure (insert f X) by
       rw [← hcl] at hcon
       exact hcon (mem_closure_insert_self M heE X)
-
     have hmin := M.closure_insert_minimal X e heE heXcl
     refine Eq.symm <| hmin.eq_of_subset ⟨?_, M.closure_isFlat _⟩ ?_
     · refine (M.closure_subset_closure (by simp)).ssubset_of_ne (fun h ↦ hfX ?_)
       rw [h]
       exact mem_closure_insert_self M hfE X
-
     rw [← (M.closure_isFlat (insert e X)).closure]
-
     exact M.closure_subset_closure (insert_subset hfeX ((M.subset_closure hX).trans
       (M.closure_subset_closure (subset_insert _ _))))
-
-
-
   Indep := M.Indep
   indep_iff := by
     simp_rw [indep_iff, and_congr_left_iff]
@@ -147,7 +166,6 @@ protected def closureMatroid (M : FlatMatroid α) : ClosureMatroid α where
       and_iff_right heI, and_iff_right inter_subset_left, subset_inter_iff,
       and_iff_right diff_subset, and_iff_left (M.subset_closure (diff_subset.trans hI))]
     exact h e heI
-
   indep_maximal := M.indep_maximal
   closure_inter_inter_ground := fun X ↦ by
     rw [closure_inter_ground, inter_eq_self_of_subset_left (M.closure_subset_ground X)]

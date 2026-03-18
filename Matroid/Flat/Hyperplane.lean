@@ -382,6 +382,11 @@ lemma isCircuitHyperplane_dual_iff (hC : C ⊆ M.E := by aesop_mat) :
     M✶.IsCircuitHyperplane C ↔ M.IsCircuitHyperplane (M.E \ C) :=
   ⟨fun h ↦ by simpa using h.compl_dual, fun h ↦ diff_diff_cancel_left hC ▸ h.compl_dual⟩
 
+lemma isCircuitHyperplane_iff_isCircuit_isCocircuit :
+    M.IsCircuitHyperplane C ↔ M.IsCircuit C ∧ M.IsCocircuit (M.E \ C) := by
+  by_cases! h : ¬ (C ⊆ M.E); grind
+  rw [isCocircuit_compl_iff_isHyperplane, isCircuitHyperplane_iff]
+
 @[simp]
 lemma loopyOn_not_isCircuitHyperplane (E C : Set α) : ¬ (loopyOn E).IsCircuitHyperplane C := by
   simp [isCircuitHyperplane_iff]
@@ -389,5 +394,17 @@ lemma loopyOn_not_isCircuitHyperplane (E C : Set α) : ¬ (loopyOn E).IsCircuitH
 @[simp]
 lemma freeOn_not_isCircuitHyperplane (E C : Set α) : ¬ (freeOn E).IsCircuitHyperplane C := by
   simp [isCircuitHyperplane_iff]
+
+lemma IsCircuitHyperplane.contract (hX : M.IsCircuitHyperplane X) (hCX : C ⊂ X) :
+    (M ／ C).IsCircuitHyperplane (X \ C) := by
+  have hdj: Disjoint (M.E \ X) C := by grind
+  rwa [isCircuitHyperplane_iff_isCircuit_isCocircuit, contract_isCocircuit_iff, contract_ground,
+    and_iff_right (hX.isCircuit.contract_isCircuit hCX), diff_diff_right,
+    disjoint_sdiff_left.inter_eq, union_empty, diff_diff_comm, hdj.sdiff_eq_left,
+    and_iff_right hX.isHyperplane.compl_isCocircuit]
+
+lemma IsCircuitHyperplane.delete {D} (hX : M.IsCircuitHyperplane X) (hDX : D ⊂ M.E \ X) :
+    (M ＼ D).IsCircuitHyperplane X := by
+  convert (hX.compl_dual.contract (C := D) hDX).compl_dual; simp; grind
 
 end IsHyperplane
