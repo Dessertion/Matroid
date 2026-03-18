@@ -38,7 +38,7 @@ lemma IsSep.of_map {f : α → α'} {S : Set α'} (hS : (f ''ᴳ G).IsSep S) :
     simpa [map_vertexDelete_preimage] using (Connected.map (G := G - (f ⁻¹' S)) f hcon')
   exact hS.not_connected this
 
-lemma IsSep.of_contract (hφ : (G ↾ C).connPartition.IsRepFun φ) (hS : (G /[φ, C]).IsSep S) :
+lemma IsSep.of_contract (hφ : (G ↾ C).connPartition.IsRepFun φ) (hS : (G /[C, φ]).IsSep S) :
     G.IsSep (φ ⁻¹' S) where
   subset_vx v hvS := by
     obtain ⟨x, hx, hvx⟩ := by
@@ -83,7 +83,7 @@ lemma ConnGE.contract_isLink {n : ℕ} (hG : G.ConnGE (n + 1)) (hl : G.IsLink e 
     hl.contract.ConnGE n where
   le_cut S hS := by
     classical
-    simpa using (hG.le_cut <| (hl.contract' ▸ hS).of_contract hl.isRepFun).trans
+    simpa using (hG.le_cut <| (hl.contract_eq ▸ hS).of_contract hl.isRepFun).trans
     <| hl.encard_preimage_le S
   le_card := by
     obtain h1 | h2 := hG.le_card
@@ -111,7 +111,7 @@ lemma ConnGE.exists_isSepSet_endpoints_of_not_connGE_contract_isLink {n : ℕ} (
     ∃ T, G.IsSep T ∧ T.encard ≤ (n + 1) ∧ x ∈ T ∧ y ∈ T := by
   classical
   obtain ⟨S, hSsep, hScard⟩ := exists_isSepSet_encard_le_of_not_connGE hnV hbad
-  have hTsep : G.IsSep (hl.repFun ⁻¹' S) := (hl.contract' ▸ hSsep).of_contract hl.isRepFun
+  have hTsep : G.IsSep (hl.repFun ⁻¹' S) := (hl.contract_eq ▸ hSsep).of_contract hl.isRepFun
   rw [hl.repFun_preimage] at hTsep
   split_ifs at hTsep with hxS; swap
   · simpa using hG.le_cut hTsep |>.trans (encard_le_encard diff_subset) |>.trans hScard

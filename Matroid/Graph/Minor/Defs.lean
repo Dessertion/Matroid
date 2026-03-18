@@ -34,132 +34,11 @@ lemma ConnBetween.eq_or_isLink_of_edgeSet_singleton (h : G.ConnBetween x y) (hE 
     obtain rfl := hxy.left_unique hywf.symm
     simp at hxw
 
-/-! ## Contraction of one edge -/
-
-private lemma contract_vertexSet_lemma [DecidableEq α] (he : G.Inc e x) :
-    let map := fun v ↦ if v = he.other then x else v
-    V(map ''ᴳ G ＼ {e}) = insert x (V(G) \ {he.other}) := by
-  rintro map
-  ext a
-  simp only [map_vertexSet, edgeDelete_vertexSet, mem_image, mem_insert_iff, mem_diff,
-    mem_singleton_iff]
-  constructor
-  · rintro ⟨b, hb, rfl⟩
-    by_cases hbo : b = he.other <;> simp [hbo, map, hb]
-  rintro (rfl | ⟨ha, hne⟩)
-  · use a, he.vertex_mem, by simp [map]
-  use a, ha, by simp [map, hne]
-
-private lemma contract_isLink_lemma [DecidableEq α] (he : G.Inc e x) :
-    let map := fun v ↦ if v = he.other then x else v
-    (map ''ᴳ G ＼ {e}).IsLink f u v ↔ ∃ a b, (G.IsLink f a b ∧ f ≠ e) ∧
-    (a = he.other ∧ x = u ∨ a ≠ he.other ∧ a = u) ∧
-    (b = he.other ∧ x = v ∨ b ≠ he.other ∧ b = v) := by
-  rintro map
-  simp only [map_isLink, edgeDelete_isLink, mem_singleton_iff, ne_eq]
-  refine exists₂_congr (fun a b ↦ and_congr_right fun _ ↦ ?_)
-  rw [eq_comm (a := u), eq_comm (a := v)]
-  refine and_congr ?_ ?_ <;> simp [map, ite_eq_iff]
-
--- A bit of a mess to do (map ''ᴳ G ＼ {e}) without decidability assumptions.
-private lemma contract_vertexSet_isLink_lemma [DecidableEq α] (he : G.IsLink e x y) :
-    V(((fun v ↦ if v = y then x else v) ''ᴳ G) ＼ {e}) = insert x (V(G) \ {y}) := by
-  classical
-  let inc : G.Inc e x := ⟨y, he⟩
-  have hother : inc.other = y := by
-    simpa [inc] using (IsLink.other_eq (G := G) (e := e) (x := x) (y := y) he)
-  simpa [hother] using (contract_vertexSet_lemma (G := G) (e := e) (x := x) (he := inc))
-
-private lemma contract_isLink_isLink_lemma [DecidableEq α] :
-    (((fun v ↦ if v = y then x else v) ''ᴳ G) ＼ {e}).IsLink f u v ↔
-      ∃ a b, (G.IsLink f a b ∧ f ≠ e) ∧
-        (a = y ∧ x = u ∨ a ≠ y ∧ a = u) ∧ (b = y ∧ x = v ∨ b ≠ y ∧ b = v) := by
-  classical
-  simp only [map_isLink, edgeDelete_isLink, mem_singleton_iff, ne_eq]
-  grind
-
-/-! ## Contraction of one edge -/
-
-/-- Contracts the edge given in the `IsLink` predicate by removing the second vertex and adding its
-  edges to the first vertex. -/
-@[simps (attr := grind =)]
-def IsLink.contract (G : Graph α β) (he : G.IsLink e x y) : Graph α β where
-  vertexSet := insert x (V(G) \ {y})
-  edgeSet := E(G) \ {e}
-  IsLink f u v := ∃ a b, (G.IsLink f a b ∧ f ≠ e) ∧
-    (a = y ∧ x = u ∨ a ≠ y ∧ a = u) ∧ (b = y ∧ x = v ∨ b ≠ y ∧ b = v)
-  isLink_symm f hf u v h := by
-    classical
-    have huv := contract_isLink_isLink_lemma.mpr h
-    exact contract_isLink_isLink_lemma.mp huv.symm
-  eq_or_eq_of_isLink_of_isLink f a b c d h1 h2 := by
-    classical
-    exact eq_or_eq_of_isLink_of_isLink _ (contract_isLink_isLink_lemma.mpr h1)
-      (contract_isLink_isLink_lemma.mpr h2)
-  edge_mem_iff_exists_isLink e' := by
-    classical
-    -- rewrite our `IsLink` predicate to that of a mapped/deleted graph
-    simp_rw [← contract_isLink_isLink_lemma]
-    exact (((fun v ↦ if v = y then x else v) ''ᴳ G) ＼ {e}).edge_mem_iff_exists_isLink e'
-  left_mem_of_isLink e' x' y' := by
-    classical
-    simp_rw [← contract_isLink_isLink_lemma, ← contract_vertexSet_isLink_lemma he]
-    convert (((fun v ↦ if v = y then x else v) ''ᴳ G) ＼ {e}).left_mem_of_isLink
-      (e := e') (x := x') (y := y')
-
-lemma IsLink.contract_vertexSet_of_ne (he : G.IsLink e x y) (hxy : x ≠ y) :
-    V(he.contract) = V(G) \ {y} := by
-  have hx' : x ∈ V(G) \ ({y} : Set α) := by
-    refine ⟨he.left_mem, ?_⟩
-    simpa [Set.mem_singleton_iff] using hxy
-  -- `x` is already in `V(G) \ {y}`, so inserting it does nothing.
-  simp [IsLink.contract, hx']
-
-lemma IsLink.contract_vertex_encard_eq_add_one [G.Finite] (he : G.IsLink e x y) (hxy : x ≠ y) :
-    V(G).encard = V(he.contract).encard + 1 := by
-  classical
-  have hy : y ∈ V(G) := he.right_mem
-  -- `encard_diff_singleton_add_one` is in `Mathlib.Data.Set.Card`.
-  have hV : V(he.contract) = V(G) \ ({y} : Set α) := he.contract_vertexSet_of_ne hxy
-  have henc : (V(G) \ ({y} : Set α)).encard = V(he.contract).encard := by
-    simpa using (congrArg Set.encard hV).symm
-  calc
-    V(G).encard = (V(G) \ ({y} : Set α)).encard + 1 := by
-      simpa using (encard_diff_singleton_add_one (s := V(G)) (a := y) hy).symm
-    _ = V(he.contract).encard + 1 := by simp [henc]
-
-/-! ### Equality to a map/delete presentation -/
-
-lemma IsLink.contract_eq_map_edgeDelete [DecidableEq α] (he : G.IsLink e x y) :
-    he.contract = (fun v ↦ if v = y then x else v) ''ᴳ (G ＼ {e}) := by
-  have h' : he.contract = (((fun v ↦ if v = y then x else v) ''ᴳ G) ＼ ({e} : Set β)) := by
-    refine Graph.ext ?_ (fun f u v ↦ ?_)
-    · simpa [IsLink.contract] using (contract_vertexSet_isLink_lemma he).symm
-    simpa [IsLink.contract] using contract_isLink_isLink_lemma.symm
-  simpa [map_edgeDelete_comm] using h'
-
-@[simp]
-lemma IsLoopAt.contract_eq (he : G.IsLoopAt e x) :
-    (show G.IsLink e x x from he).contract = G ＼ {e} := by
-  classical
-  conv_rhs => rw [← (G ＼ {e}).map_id]
-  rw [he.contract_eq_map_edgeDelete]
-  refine map_congr_left_of_eqOn (fun u _hu ↦ ?_)
-  by_cases hux : u = x <;> simp [hux]
-
-lemma IsLink.contract_vertexDelete_of_notMem (he : G.IsLink e x y) (hx : x ∉ X) :
-    he.contract - X = (G.vertexDelete_isInducedSubgraph (X \ {y}) |>.isLink_of_mem_mem
-        he (by simp [hx, he.left_mem]) (by simp [he.right_mem]) |>.contract) := by
-  ext a b c <;>
-  · simp +contextual only [vertexDelete_vertexSet, contract_vertexSet, vertexDelete_isLink_iff,
-    contract_isLink, mem_diff, mem_insert_iff, mem_singleton_iff]
-    grind
-
 /-! ## Contracting a set of edges -/
 
 variable {α' α'' : Type*}
 
-/-- `Contract G φ C` contracts the edges in set `C` of graph `G`,
+/-- `Contract G C φ` contracts the edges in set `C` of graph `G`,
     mapping the resulting vertices according to function `φ`.
 
     This operation creates a new graph where:
@@ -170,62 +49,62 @@ variable {α' α'' : Type*}
     For this definition to be sound, `φ` has to have the connected components of `G ↾ C` as fibers.
 -/
 @[simps! (attr := grind =)]
-def contract (G : Graph α β) (φ : α → α') (C : Set β) : Graph α' β :=
+def contract (G : Graph α β) (C : Set β) (φ : α → α') : Graph α' β :=
   (φ ''ᴳ G) ＼ C
 
 -- attribute [grind =] contract_vertexSet contract_edgeSet contract_isLink
 
-notation:70 G " /["φ ", " C"] " => Graph.contract G φ C
+notation:70 G " /["C ", " φ"] " => Graph.contract G C φ
 
 /- lemmas about Contract -/
 
 variable {φ φ' τ : α → α'} {C C' D : Set β}
 
 @[simp, grind =]
-lemma contract_inc {x : α'} : G /[φ, C].Inc e x ↔ e ∉ C ∧ ∃ v, G.Inc e v ∧ φ v = x := by
+lemma contract_inc {x : α'} : G /[C, φ].Inc e x ↔ e ∉ C ∧ ∃ v, G.Inc e v ∧ φ v = x := by
   simp +contextual only [contract, edgeDelete_inc_iff, map_inc, iff_def, not_false_eq_true,
     true_and, and_imp, forall_exists_index, and_true]
   tauto
 
 lemma IsLink.contract_of_notMem (φ : α → α') (heC : e ∉ C) (hbtw : G.IsLink e u v) :
-    G /[φ, C].IsLink e (φ u) (φ v) := by
+    G /[C, φ].IsLink e (φ u) (φ v) := by
   simp only [Graph.contract_isLink, heC, not_false_eq_true, and_true]
   use u, v
 
 lemma IsLoopAt.contract_of_notMem (φ : α → α') (heC : e ∉ C) (hbtw : G.IsLoopAt e x) :
-    G /[φ, C].IsLoopAt e (φ x) :=
+    G /[C, φ].IsLoopAt e (φ x) :=
   IsLink.contract_of_notMem φ heC hbtw
 
 @[gcongr]
-lemma contract_mono (h : G ≤ H) : G /[φ, C] ≤ H /[φ, C] :=
+lemma contract_mono (h : G ≤ H) : G /[C, φ] ≤ H /[C, φ] :=
   edgeDelete_mono_left (map_mono h) C
 
 @[gcongr]
-lemma contract_isSpanningSubgraph (h : G ≤s H) : G /[φ, C] ≤s H /[φ, C] :=
+lemma contract_isSpanningSubgraph (h : G ≤s H) : G /[C, φ] ≤s H /[C, φ] :=
   (map_isSpanningSubgraph h).edgeDelete C
 
 @[simp]
-lemma contract_contract {φ' : α' → α''} : (G /[φ, C]) /[φ', C'] = G /[φ' ∘ φ, C ∪ C'] := by
+lemma contract_contract {φ' : α' → α''} : (G /[C, φ]) /[C', φ'] = G /[C ∪ C', φ' ∘ φ] := by
   unfold contract
   rw [map_edgeDelete_comm, map_map, edgeDelete_edgeDelete]
 
-lemma contract_edgeRestrict_comm : H /[φ, E(G)] ↾ F = (H ↾ F) /[φ, E(G)] := by
+lemma contract_edgeRestrict_comm : H /[C, φ] ↾ F = (H ↾ F) /[C, φ] := by
   rw [contract, ← edgeRestrict_edgeDelete_comm, ← map_edgeRestrict_comm]
   rfl
 
-lemma contract_edgeDelete_comm : (H /[φ, E(G)]) ＼ F = (H ＼ F) /[φ, E(G)] := by
+lemma contract_edgeDelete_comm : (H /[C, φ]) ＼ F = (H ＼ F) /[C, φ] := by
   ext x y <;> grind
 
-lemma edgeSet_disjoint_of_le_contract {φ : α → α} (h : G ≤ G /[φ, C]) : Disjoint E(G) C := by
+lemma edgeSet_disjoint_of_le_contract {φ : α → α} (h : G ≤ G /[C, φ]) : Disjoint E(G) C := by
   apply_fun edgeSet (α := α) (β := β) at h using edgeSet_monotone (α := α) (β := β)
   simpa [subset_diff] using h
 
 @[simp]
-lemma contract_eq_map_of_disjoint (hdj : Disjoint E(G) C) : G /[φ, C] = φ ''ᴳ G := by
+lemma contract_eq_map_of_disjoint (hdj : Disjoint E(G) C) : G /[C, φ] = φ ''ᴳ G := by
   unfold contract
   rw [edgeDelete_eq _ (by simpa)]
 
-lemma map_eq_self_of_contract_eq_self {φ : α → α} (h : G /[φ, C] = G) : (φ ''ᴳ G) = G := by
+lemma map_eq_self_of_contract_eq_self {φ : α → α} (h : G /[C, φ] = G) : (φ ''ᴳ G) = G := by
   unfold contract at h
   rwa [edgeDelete_eq _ (by simp [edgeSet_disjoint_of_le_contract h.ge])] at h
 
@@ -253,12 +132,12 @@ lemma _root_.Partition.IsRepFun.isContractClosed_of_ge (hφ : H.connPartition.Is
   hφ.isContractClosed_of_compatible (compatible_of_le hHG).symm
 
 @[simp]
-lemma preimage_vertexDelete_contract : (H - φ ⁻¹' X) /[φ, C] = H /[φ, C] - X := by
+lemma preimage_vertexDelete_contract : (H - φ ⁻¹' X) /[C, φ] = H /[C, φ] - X := by
   rw [contract, contract, edgeDelete_vertexDelete, map_vertexDelete_preimage]
 
 /- The contract definition is sound when `φ` is a `H.connPartition.IsRepFun`. -/
 lemma contract_vertex_mono (hφ : G.connPartition.IsRepFun φ) (hGH : G ≤ H) :
-    V(H /[φ, E(G)]) ⊆ V(H) := by
+    V(H /[E(G), φ]) ⊆ V(H) := by
   refine vertexSet_mono edgeDelete_le |>.trans <| hφ.image_subset ?_
   simp [vertexSet_mono hGH]
 
@@ -275,7 +154,7 @@ lemma isLoopAt_map_iff_connBetween (hφ : G.connPartition.IsRepFun φ) :
   simp [hφ.apply_eq_apply (by simpa using huv hne)]
 
 lemma IsWalk.edgeRemove_contract [DecidablePred (· ∈ E(H))] {w} (h : G.IsWalk w) (hHG : H ≤ G)
-    (hφ : H.connPartition.IsRepFun φ) : (G /[φ, E(H)]).IsWalk <| (w.map φ).edgeRemove E(H) := by
+    (hφ : H.connPartition.IsRepFun φ) : (G /[E(H), φ]).IsWalk <| (w.map φ).edgeRemove E(H) := by
   induction w with
   | nil x =>
     simp only [nil_isWalk_iff, map_nil, edgeRemove_nil, contract_vertexSet] at h ⊢
@@ -292,12 +171,12 @@ lemma IsWalk.edgeRemove_contract [DecidablePred (· ∈ E(H))] {w} (h : G.IsWalk
     use x, w.first, hl
 
 lemma IsTrail.edgeRemove_contract [DecidablePred (· ∈ E(H))] {w} (h : G.IsTrail w) (hHG : H ≤ G)
-    (hφ : H.connPartition.IsRepFun φ) : (G /[φ, E(H)]).IsTrail ((w.map φ).edgeRemove E(H)) :=
+    (hφ : H.connPartition.IsRepFun φ) : (G /[E(H), φ]).IsTrail ((w.map φ).edgeRemove E(H)) :=
   ⟨h.isWalk.edgeRemove_contract hHG hφ, h.edge_nodup.sublist <| by simp⟩
 
 lemma IsTour.edgeRemove_contract [DecidablePred (· ∈ E(H))] {w} (h : G.IsTour w) (hHG : H ≤ G)
     (hφ : H.connPartition.IsRepFun φ) (hne : ∃ e, e ∈ w.edge ∧ e ∉ E(H)) :
-    (G /[φ, E(H)]).IsTour ((w.map φ).edgeRemove E(H)) := by
+    (G /[E(H), φ]).IsTour ((w.map φ).edgeRemove E(H)) := by
   refine ⟨h.toIsTrail.edgeRemove_contract hHG hφ, ?_, ?_⟩
   · obtain ⟨e, he, heH⟩ := hne
     exact nonempty_iff_exists_edge.mpr ⟨e, by simp [he, heH]⟩
@@ -306,9 +185,12 @@ lemma IsTour.edgeRemove_contract [DecidablePred (· ∈ E(H))] {w} (h : G.IsTour
   simp only [WList.IsClosed, this, map_first, edgeRemove_last, map_last]
   exact congrArg φ h.isClosed
 
-/-! ### A representative function for a single-edge contraction -/
+/-! ## Contraction of one edge -/
+
 
 namespace IsLink
+
+section repFun
 variable [DecidableEq α]
 
 /-- A representative function for the connected components of `G ↾ {e}` coming from a link
@@ -354,10 +236,6 @@ lemma repFun_toFun (he : G.IsLink e x y) : he.repFun = fun v ↦ if v = y then x
   ext v
   simp [repFun]
 
-lemma contract' (he : G.IsLink e x y) : he.contract = G /[he.repFun, ({e} : Set β)] := by
-  rw [he.contract_eq_map_edgeDelete, map_edgeDelete_comm]
-  rfl
-
 @[simp]
 lemma repFun_preimage (he : G.IsLink e x y) (S : Set α) [DecidablePred (· ∈ S)] :
     he.repFun ⁻¹' S = if x ∈ S then insert y S else S \ {y} := by
@@ -369,6 +247,127 @@ lemma repFun_preimage (he : G.IsLink e x y) (S : Set α) [DecidablePred (· ∈ 
     split_ifs with hxS <;> simpa
   simp only [hvy, ↓reduceIte]
   split_ifs with hxS <;> simp [hvy]
+
+-- A bit of a mess to do (map ''ᴳ G ＼ {e}) without decidability assumptions.
+private lemma contract_vertexSet_isLink_lemma (he : G.IsLink e x y) :
+    V((he.repFun ''ᴳ G) ＼ {e}) = insert x (V(G) \ {y}) := by
+  simp only [edgeDelete_vertexSet, map_vertexSet, repFun_apply]
+  grind
+
+private lemma contract_isLink_isLink_lemma :
+    (((fun v ↦ if v = y then x else v) ''ᴳ G) ＼ {e}).IsLink f u v ↔
+      ∃ a b, (G.IsLink f a b ∧ f ≠ e) ∧
+        (a = y ∧ x = u ∨ a ≠ y ∧ a = u) ∧ (b = y ∧ x = v ∨ b ≠ y ∧ b = v) := by
+  classical
+  simp only [map_isLink, edgeDelete_isLink, mem_singleton_iff, ne_eq]
+  grind
+
+end repFun
+
+/-- Contracts the edge given in the `IsLink` predicate by removing the second vertex and adding its
+  edges to the first vertex. -/
+@[simps (attr := grind =)]
+def contract (G : Graph α β) (e : β) (he : G.IsLink e x y) : Graph α β where
+  vertexSet := insert x (V(G) \ {y})
+  edgeSet := E(G) \ {e}
+  IsLink f u v := ∃ a b, (G.IsLink f a b ∧ f ≠ e) ∧
+    (a = y ∧ x = u ∨ a ≠ y ∧ a = u) ∧ (b = y ∧ x = v ∨ b ≠ y ∧ b = v)
+  isLink_symm f hf u v h := by
+    classical
+    have huv := contract_isLink_isLink_lemma.mpr h
+    exact contract_isLink_isLink_lemma.mp huv.symm
+  eq_or_eq_of_isLink_of_isLink f a b c d h1 h2 := by
+    classical
+    exact eq_or_eq_of_isLink_of_isLink _ (contract_isLink_isLink_lemma.mpr h1)
+      (contract_isLink_isLink_lemma.mpr h2)
+  edge_mem_iff_exists_isLink e' := by
+    classical
+    -- rewrite our `IsLink` predicate to that of a mapped/deleted graph
+    simp_rw [← contract_isLink_isLink_lemma]
+    exact ((he.repFun ''ᴳ G) ＼ {e}).edge_mem_iff_exists_isLink e'
+  left_mem_of_isLink e' x' y' := by
+    classical
+    simp_rw [← contract_isLink_isLink_lemma, ← contract_vertexSet_isLink_lemma he, he.repFun_toFun]
+    convert (((fun v ↦ if v = y then x else v) ''ᴳ G) ＼ {e}).left_mem_of_isLink (e := e') (x := x')
+      (y := y')
+
+notation:70 G " /("e ", " he")" => Graph.IsLink.contract G e he
+
+lemma contract_vertexSet_of_ne (he : G.IsLink e x y) (hxy : x ≠ y) :
+    V(G /(e, he)) = V(G) \ {y} := by
+  have hx' : x ∈ V(G) \ ({y} : Set α) := by
+    refine ⟨he.left_mem, ?_⟩
+    simpa [Set.mem_singleton_iff] using hxy
+  -- `x` is already in `V(G) \ {y}`, so inserting it does nothing.
+  simp [IsLink.contract, hx']
+
+lemma contract_vertex_encard_eq_add_one [G.Finite] (he : G.IsLink e x y) (hxy : x ≠ y) :
+    V(G).encard = V(G /(e, he)).encard + 1 := by
+  classical
+  have hy : y ∈ V(G) := he.right_mem
+  -- `encard_diff_singleton_add_one` is in `Mathlib.Data.Set.Card`.
+  have hV : V(G /(e, he)) = V(G) \ ({y} : Set α) := he.contract_vertexSet_of_ne hxy
+  have henc : (V(G) \ ({y} : Set α)).encard = V(G /(e, he)).encard := by
+    simpa using (congrArg Set.encard hV).symm
+  calc
+    V(G).encard = (V(G) \ ({y} : Set α)).encard + 1 := by
+      simpa using (encard_diff_singleton_add_one (s := V(G)) (a := y) hy).symm
+    _ = V(G /(e, he)).encard + 1 := by simp [henc]
+
+/-! ### Equality to a map/delete presentation -/
+
+lemma contract_vertexDelete_of_notMem (he : G.IsLink e x y) (hx : x ∉ X) :
+    G /(e, he) - X = (G.vertexDelete_isInducedSubgraph (X \ {y}) |>.isLink_of_mem_mem
+        he (by simp [hx, he.left_mem]) (by simp [he.right_mem]) |>.contract) := by
+  ext a b c <;>
+  · simp +contextual only [vertexDelete_vertexSet, contract_vertexSet, vertexDelete_isLink_iff,
+    contract_isLink, mem_diff, mem_insert_iff, mem_singleton_iff]
+    grind
+
+variable [DecidableEq α]
+
+lemma contract_eq_map_edgeDelete (he : G.IsLink e x y) :
+    G /(e, he) = he.repFun ''ᴳ (G ＼ {e}) := by
+  have h' : G /(e, he) = ((he.repFun ''ᴳ G) ＼ ({e} : Set β)) := by
+    refine Graph.ext ?_ (fun f u v ↦ ?_)
+    · simpa [IsLink.contract] using (contract_vertexSet_isLink_lemma he).symm
+    simpa [IsLink.contract] using contract_isLink_isLink_lemma.symm
+  simpa [map_edgeDelete_comm] using h'
+
+@[simp]
+lemma _root_.Graph.IsLoopAt.contract_eq (he : G.IsLoopAt e x) :
+    (show G.IsLink e x x from he).contract = G ＼ {e} := by
+  classical
+  conv_rhs => rw [← (G ＼ {e}).map_id]
+  rw [he.contract_eq_map_edgeDelete]
+  refine map_congr_left_of_eqOn (fun u _hu ↦ ?_)
+  by_cases hux : u = x <;> simp [hux]
+
+lemma contract_eq (he : G.IsLink e x y) : G /(e, he) = G /[({e} : Set β), he.repFun] := by
+  rw [he.contract_eq_map_edgeDelete, map_edgeDelete_comm]
+  rfl
+
+lemma contract_isLink_of_ne (he : G.IsLink e x y) (hf : G.IsLink f u v) (hef : e ≠ f) :
+    G /(e, he).IsLink f (he.repFun u) (he.repFun v) := by
+  rw [contract_eq]
+  grind
+
+lemma contract_edgeDelete_comm (he : G.IsLink e x y) (heF : e ∉ F) :
+    (G /(e, he)) ＼ F = G ＼ F /(e, ⟨he, heF⟩) := by
+  simp_rw [contract_eq]
+  rw [Graph.contract_edgeDelete_comm]
+  congr 1
+
+lemma contract_contract_comm_of_ne (he : G.IsLink e x y) (hf : G.IsLink f u v) (hyv : y ≠ v)
+    (hor : x ≠ v ∨ y ≠ u) (hef : e ≠ f) :
+    G /(e, he) /(f, he.contract_isLink_of_ne hf hef) =
+    G /(f, hf) /(e, hf.contract_isLink_of_ne he hef.symm) := by
+  simp_rw [contract_eq, contract_contract]
+  rw [union_comm]
+  congr 1
+  ext a
+  simp only [comp_apply, repFun_apply]
+  grind
 
 end IsLink
 
@@ -393,12 +392,12 @@ instance [G.IsPartitionGraph] : (G - X).IsPartitionGraph := isPartitionGraph_of_
 instance [G.IsPartitionGraph] : (G ↾ F).IsPartitionGraph := isPartitionGraph_of_le edgeRestrict_le
 instance [G.IsPartitionGraph] : (G ＼ F).IsPartitionGraph := isPartitionGraph_of_le edgeDelete_le
 -- instance [G.IsPartitionGraph] {hφ : (G ↾ C).connPartition.IsRepFun φ} :
---     (G /[φ, C]).IsPartitionGraph :=
+--     (G /[C, φ]).IsPartitionGraph :=
 --   isPartitionGraph_of_vertex_subset (contract_vertex_mono hφ)
 
 @[simps! (attr := grind =)]
 def sContract (G : Graph α β) [G.IsPartitionGraph] (C : Set β) : Graph α β :=
-  G /[(sSup <| (G ↾ C).connPartition.partOf ·), C]
+  G /[C, (sSup <| (G ↾ C).connPartition.partOf ·)]
 
 notation:70 G " /[" C "] " => Graph.sContract G C
 
@@ -487,7 +486,7 @@ def minorMap_of_le (h : G ≤ H) : minorMap G H where
   link e x y hxy := ⟨x, y, h.isLink_of_isLink hxy, by simp⟩
   conn v := by simp
 
-def minorMap_of_contract (hφ : (G ↾ C).connPartition.IsRepFun φ) : minorMap (G /[φ, C]) G where
+def minorMap_of_contract (hφ : (G ↾ C).connPartition.IsRepFun φ) : minorMap (G /[C, φ]) G where
   map v := ⟨(G ↾ C).walkable v.val, walkable_isClosedSubgraph.le.trans edgeRestrict_le⟩
   disj u v huv := by
     obtain ⟨u, ⟨x, hx, rfl⟩⟩ := u
@@ -545,7 +544,7 @@ lemma IsMinor.refl (G : Graph α β) : G ≤ₘ G := ⟨minorMap_refl G⟩
 lemma isMinor_of_le (h : G ≤ H) : G ≤ₘ H := ⟨minorMap_of_le h⟩
 
 @[simp]
-lemma isMinor_of_contract (hφ : (G ↾ C).connPartition.IsRepFun φ) : G /[φ, C] ≤ₘ G :=
+lemma isMinor_of_contract (hφ : (G ↾ C).connPartition.IsRepFun φ) : G /[C, φ] ≤ₘ G :=
   ⟨minorMap_of_contract hφ⟩
 
 lemma IsMinor.edgeSet_mono (hGH : G ≤ₘ H) : E(G) ⊆ E(H) := hGH.some.edgeSet_mono
