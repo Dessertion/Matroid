@@ -132,6 +132,13 @@ lemma IsMatching.eDegree_eq_fn [DecidablePred (· ∈ V(G, M))] [G.Loopless] (hM
   simp only [incEdges_edgeRestrict, mem_inter_iff, mem_incEdges_iff] at he
   exact ⟨e, he.2, he.1⟩
 
+lemma IsMatching.eDegree_eq_one [G.Loopless] (hM : G.IsMatching M) (hx : x ∈ V(G, M)) :
+    (G ↾ M).eDegree x = 1 := by
+  classical
+  rw [hM.eDegree_eq_fn]
+  simp
+  exact hx
+
 @[simp, grind .]
 lemma IsMatching.eDegree_le_two (hM : G.IsMatching M) (x : α) :
     (G ↾ M).eDegree x ≤ 2 := by
@@ -184,7 +191,7 @@ lemma isMatching_singleton (he : e ∈ E(G)) : G.IsMatching {e} := by
   constructor <;> [simpa ; simp]
 
 
-lemma IsMatching.of_le (hle : G ≤ H) (h : G.IsMatching M) : H.IsMatching M where
+lemma IsMatching.mono_left (hle : G ≤ H) (h : G.IsMatching M) : H.IsMatching M where
   subset := h.subset.trans (edgeSet_mono hle)
   disjoint e f heM hfM hne := by
     unfold endSet
@@ -221,7 +228,7 @@ lemma isMatching_iff_edgeRestrict_isMatching :
     simp only [edgeRestrict_edgeSet, subset_inter_iff, subset_refl, and_true]
     grind only [hM.subset]
   intro hM
-  refine hM.of_le edgeRestrict_le
+  refine hM.mono_left edgeRestrict_le
 
 lemma isMaxMatching_iff_maximalFor : G.IsMaxMatching M ↔ MaximalFor G.IsMatching Set.encard M :=
   ⟨fun h => ⟨h.toIsMatching, fun T hT _ ↦ h.2 T hT⟩,
@@ -232,7 +239,7 @@ lemma matchingNumber_mono (hle : G ≤ H) : ν(G) ≤ ν(H) := by
   conv => lhs; unfold matchingNumber
   rw [sSup_le_iff]
   rintro _ ⟨M, hM, rfl⟩
-  exact hM.of_le hle |>.encard_le
+  exact hM.mono_left hle |>.encard_le
 
 -- If every vertex has at most 1 incident edge, then it must be a matching.
 lemma isMatching_of_encard_incEdges_le_one
@@ -645,7 +652,7 @@ lemma matchingNumber_union (hdisj : G.StronglyDisjoint H) : ν(G ∪ H) = ν(G) 
     obtain ⟨n, hn, hbn⟩ := hν b hb
     obtain ⟨M, hM, rfl⟩ := hn
     refine ⟨M.encard, ?_, hbn⟩
-    refine ⟨M, hM.of_le (G.left_le_union H), rfl⟩
+    refine ⟨M, hM.mono_left (G.left_le_union H), rfl⟩
   obtain ⟨M, hM⟩ := G.exists_isMaxMatching' hfinite.1
   obtain ⟨N, hN⟩ := H.exists_isMaxMatching' hfinite.2
   have MN_maxMatching := hM.union hN hdisj
@@ -684,7 +691,7 @@ lemma IsMatching.union' {N : Set β}
     grw [← subset_induce_incVertexSet _]
     grind [hN.subset]
   have := hM'.union hN' strong_disj
-  refine this.of_le ?_
+  refine this.mono_left ?_
   exact Graph.union_le
     (induce_le <| G.incVertexSet_subset _)
     (induce_le <| G.incVertexSet_subset _)
@@ -1039,27 +1046,23 @@ lemma IsPathGraph.eq_first_or_last_or_inner (hP : P.IsPathGraph) (hxP : x ∈ V(
   right; right
   exact hP.eDegree_eq_two hxP h.1 h.2
 
-structure IsMatching.IsAugPath (hM : G.IsMatching M) (P : Graph α β) : Prop where
-  -- there is some consideration here about whether to allow empty paths to be augmenting or not;
-  -- we've gone and arbitrarily decided to forbid it here in this definition,
-  -- but one could just as well allow it and stipulate non-emptiness in all relevant lemmas.
+-- `IsAugmenter` takes the place of augmenting paths; it is a strict generalization.
+structure IsAugmenter (G : Graph α β) (M : Set β) (P : Graph α β) : Prop where
   le : P ≤ G
-  isPathGraph : P.IsPathGraph
-  nonempty : E(P).Nonempty
+  -- effectively, MaxDegreeLE 2, but also we have no isolated vertices
+  eDegree_eq_one_or_two : ∀ ⦃x⦄, x ∈ V(P) → P.eDegree x = 1 ∨ P.eDegree x = 2
+  -- there is at least one leaf (this shows that there is at least one augmenting path in our graph)
+  exists_isLeaf : ∃ x, P.IsLeaf x
   -- all internal vx of P are matched by M, by edges of P
-  match_nonleaf : ∀ ⦃x⦄, x ∈ V(P) → P.eDegree x = 2 → x ∈ V(P, M)
+  match_nonleaf : ∀ ⦃x⦄, P.eDegree x = 2 → x ∈ V(P, M)
   -- neither of the leaf vxs of P are matched by M
   no_match_leaf : ∀ ⦃x⦄, P.eDegree x = 1 → x ∉ V(G, M)
 
-namespace IsMatching
-
 attribute [grind →, grind <=]
-    IsAugPath.le IsAugPath.isPathGraph IsAugPath.nonempty IsAugPath.match_nonleaf
-    IsAugPath.no_match_leaf
+    IsAugmenter.le IsAugmenter.eDegree_eq_one_or_two IsAugmenter.exists_isLeaf IsAugmenter.match_nonleaf
+    IsAugmenter.no_match_leaf
 
-variable {hM : G.IsMatching M}
-
-lemma IsAugPath.matched_vertexSet_eq (hP : hM.IsAugPath P) :
+lemma IsAugmenter.matched_vertexSet_eq (hP : G.IsAugmenter M P) :
     V(P, M) = {x ∈ V(P) | P.eDegree x = 2} := by
   ext x
   refine ⟨?_, ?_⟩
@@ -1067,25 +1070,42 @@ lemma IsAugPath.matched_vertexSet_eq (hP : hM.IsAugPath P) :
     refine ⟨by grind, ?_⟩
     by_contra! bad
     replace bad : P.eDegree x = 1 := by
-      have := hP.isPathGraph.eDegree_eq_one_or_two hP.nonempty (incVertexSet_subset _ _ hx)
+      have := hP.eDegree_eq_one_or_two (incVertexSet_subset _ _ hx)
       grind only
     exact hP.no_match_leaf bad (incVertexSet_mono hP.le _ hx)
   grind
 
-lemma IsAugPath.diff_matching_isMatching (hP : hM.IsAugPath P) :
+lemma IsAugmenter.matched_vertexSet_eq' (hP : G.IsAugmenter M P) :
+    V(P, E(P) ∩ M) = {x ∈ V(P) | P.eDegree x = 2} := by
+  rw [← hP.matched_vertexSet_eq, inter_comm, incVertexSet_inter_edgeSet]
+
+lemma IsAugmenter.maxDegreeLE_two (hP : G.IsAugmenter M P) : P.MaxDegreeLE 2 := by
+  rw [maxDegreeLE_iff']
+  intro x hx
+  obtain (h|h) := hP.eDegree_eq_one_or_two hx
+    <;> (enat_to_nat!; omega)
+
+lemma IsAugmenter.degreePos (hP : G.IsAugmenter M P) : P.DegreePos := by
+  rw [degreePos_iff']
+  intro x hx
+  obtain (h|h) := hP.eDegree_eq_one_or_two hx
+    <;> (enat_to_nat!; omega)
+
+lemma IsAugmenter.edgeSet_nonempty (hP : G.IsAugmenter M P) : E(P).Nonempty := by
+  have ⟨x, e, hex⟩ := hP.exists_isLeaf
+  exact ⟨e, hex.edge_mem⟩
+
+lemma IsAugmenter.diff_matching_isMatching [P.Loopless] (hP : G.IsAugmenter M P) :
     P.IsMatching (E(P) \ M) where
   subset := by
     grw [diff_subset]
   disjoint e f he hf hne := by
-    have _ : P.Simple := hP.isPathGraph.simple
     rw [disjoint_left]
     intro x hxe hxf
     change e ∈ E(P, x) at hxe
     change f ∈ E(P, x) at hxf
-    have hxP : x ∈ V(P) := by
-      refine Inc.vertex_mem (e := e) hxe
     have deg : P.eDegree x = 2 := by
-      refine (hP.isPathGraph.maxDegreeLE_two x).antisymm ?_
+      refine (hP.maxDegreeLE_two x).antisymm ?_
       rw [eDegree_eq_encard_inc, Nat.cast_ofNat, two_le_encard_iff_nontrivial]
       refine ⟨e, hxe, f, hxf, hne⟩
     have h_incEdges : E(P, x) = {e, f} := by
@@ -1098,7 +1118,7 @@ lemma IsAugPath.diff_matching_isMatching (hP : hM.IsAugPath P) :
       apply congr_arg ENat.toNat at deg
       simp [← ncard_def] at deg
       grw [deg, ncard_pair hne]
-    have bad := hP.match_nonleaf hxP deg
+    have bad := hP.match_nonleaf deg
     simp at bad
     obtain ⟨e', he'M, he'⟩ := bad
     change e' ∈ E(P, x) at he'
@@ -1107,38 +1127,40 @@ lemma IsAugPath.diff_matching_isMatching (hP : hM.IsAugPath P) :
       <;> [exact he.2 ‹_›; exact hf.2 ‹_›]
 
 --
-lemma IsAugPath.vertexSet_disjoint (hP : hM.IsAugPath P) : Disjoint V(P) V(G, M \ E(P)) := by
+lemma IsAugmenter.vertexSet_disjoint (hM : G.IsMatching M) (hP : G.IsAugmenter M P) :
+    Disjoint V(P) V(G, M \ E(P)) := by
   rw [disjoint_left]
   intro x hxP hxGM'
   have hxGM : x ∈ V(G, M) := by
     simp at hxGM'
     obtain ⟨e, he⟩ := hxGM'
     refine ⟨e, he.1.1, he.2⟩
-  obtain (rfl|rfl|h) := hP.isPathGraph.eq_first_or_last_or_inner hxP
-  · refine hP.no_match_leaf ?_ hxGM
-    exact hP.isPathGraph.isLeaf_first hP.nonempty |>.eDegree
-  · refine hP.no_match_leaf ?_ hxGM
-    exact hP.isPathGraph.isLeaf_last hP.nonempty |>.eDegree
-  have M_diff_matching : G.IsMatching (M \ E(P)) := by
-    sorry
-  have P_matching : P.IsMatching M := by
-    sorry
-  have hxPM := hP.match_nonleaf hxP h
+  obtain (h|h) := hP.eDegree_eq_one_or_two hxP
+  · exact hP.no_match_leaf ‹_› hxGM
+  have M_diff_matching : G.IsMatching (M \ E(P)) :=
+    hM.anti_right diff_subset
+  have P_matching : P.IsMatching (E(P) ∩ M) :=
+    hM.anti_left' hP.le
+  have hxPM : x ∈ V(P, E(P) ∩ M) := by
+    have ⟨e, he⟩ := hP.match_nonleaf h
+    exact ⟨e, ⟨he.2.edge_mem, he.1⟩, he.2⟩
   have ⟨e, he, e_unique⟩ := hM.existsUnique_covering_edge hxGM
   obtain ⟨e', he', -⟩ := M_diff_matching.existsUnique_covering_edge hxGM'
   obtain ⟨f, hf, -⟩ := P_matching.existsUnique_covering_edge hxPM
   simp at e_unique he he' hf
   have : e' = f := by
-    rw [e_unique _ he'.1.1 he'.2, e_unique _ hf.1 (hf.2.of_le hP.le)]
+    rw [e_unique _ he'.1.1 he'.2, e_unique _ hf.1.2 (hf.2.of_le hP.le)]
   rw [this] at he'
   exact he'.1.2 hf.2.edge_mem
 
 /-- Given a matching M and an augmenting path P for M, we can get back a larger matching --/
-lemma IsAugPath.symmDiff_isMatching (hP : hM.IsAugPath P) : G.IsMatching (M ∆ E(P)) := by
+lemma IsAugmenter.symmDiff_matching_isMatching [P.Loopless] (hM : G.IsMatching M)
+    (hP : G.IsAugmenter M P) : G.IsMatching (E(P) ∆ M) := by
+  rw [symmDiff_comm]
   have disj : P.StronglyDisjoint (Subgraph.ofEdge G (M \ E(P))) := by
     refine ⟨?_, ?_⟩
     · simp
-      exact hP.vertexSet_disjoint
+      exact hP.vertexSet_disjoint hM
     rw [disjoint_left]
     simp
     grind only
@@ -1152,27 +1174,123 @@ lemma IsAugPath.symmDiff_isMatching (hP : hM.IsAugPath P) : G.IsMatching (M ∆ 
     grw [diff_subset, hM.subset]
   have := P_matching.union G'_matching disj
   rw [symmDiff_comm, Set.symmDiff_def]
-  refine this.of_le ?_
+  refine this.mono_left ?_
   refine Graph.union_le hP.le G'.le
 
-lemma IsAugPath.diff_matching_vertexSet (hP : hM.IsAugPath P) : V(P, E(P) \ M) = V(P) := by
-  sorry
+lemma IsAugmenter.diff_matching_vertexSet [P.Loopless] (hM : G.IsMatching M)
+    (hP : G.IsAugmenter M P) : V(P, E(P) \ M) = V(P) := by
+  -- every degree-2 vertex gets matched by the other edge
+  -- every degree-1 vertex must have previously been unmatched, and hence must now be matched
+  refine eq_of_subset_of_subset (incVertexSet_subset _ _) ?_
+  intro x hxP
+  obtain (deg|deg) := hP.eDegree_eq_one_or_two hxP
+  · -- degree 1
+    have h : P.eDegree x = 1 := deg
+    rw [eDegree_eq_encard_inc, encard_eq_one] at h
+    obtain ⟨e, heq⟩ := h
+    have he : P.Inc e x := by
+      change e ∈ E(P, x)
+      simp [heq]
+    have he_notMem_M : e ∉ M := by
+      intro heM
+      refine hP.no_match_leaf deg ?_
+      refine ⟨e, heM, he.of_le hP.le⟩
+    refine ⟨e, ⟨he.edge_mem, he_notMem_M⟩, he⟩
+  -- degree 2
+  have ⟨e, he⟩ := hP.match_nonleaf deg
+  rw [eDegree_eq_encard_inc] at deg
+  symm at deg; apply le_of_eq at deg
+  rw [two_le_encard_iff_nontrivial] at deg
+  have ⟨f, hf⟩ := deg.exists_ne e
+  refine ⟨f, ⟨hf.1.edge_mem, ?_⟩, hf.1⟩
+  intro hfM
+  have := hM.disjoint hfM he.1 hf.2
+  rw [disjoint_left] at this
+  exact this (hf.1.of_le hP.le) (he.2.of_le hP.le)
 
-lemma IsAugPath.diff_matching_encard (hP : hM.IsAugPath P) :
-    (E(P) \ M).encard = (E(P) ∩ M).encard + 1 := by
+-- TODO: move
+lemma incVertexSet_mono_right {F F' : Set β} (G : Graph α β) (hsub : F ⊆ F') :
+    V(G, F) ⊆ V(G, F') := by
+  rintro x ⟨e, heF, hex⟩
+  refine ⟨e, hsub heF, hex⟩
+
+lemma IsAugmenter.symmDiff_matching_vertexSet [P.Loopless] (hM : G.IsMatching M)
+    (hP : G.IsAugmenter M P) : V(P, E(P) ∆ M) = V(P) := by
+  refine eq_of_subset_of_subset (incVertexSet_subset _ _) ?_
+  grw [Set.symmDiff_def, ← incVertexSet_mono_right _ (subset_union_left),
+    hP.diff_matching_vertexSet hM]
+
+-- TODO: rename; what a mouthful
+-- TODO: also, is this even useful in this form? statements about encard ≤ encard are really weak...
+--       we really want to say that there is at least one more element.
+-- this can't even be _ < _ anymore, since we are no longer assuming a path (which is guaranteed to
+-- be finite).
+lemma IsAugmenter.matching_encard_add_one_le_diff_matching_encard [P.Loopless]
+    (hM : G.IsMatching M) (hP : G.IsAugmenter M P) : (E(P) ∩ M).encard + 1 ≤ (E(P) \ M).encard := by
   -- (E(P) \ M) matches all of V(P)
   -- so 2 * |E(P) \ M| = |V(P)|
   -- meanwhile, (E(P) ∩ M) matches V(P) \ {P.first, P.last}
   -- so 2 * |E(P) ∩ M| = |V(P) \ {P.first, P.last}| = |V(P)| - 2
   -- so |E(P) \ M| = 1 + |E(P) ∩ M|
-  sorry
+  have M'_isMatching : P.IsMatching (E(P) \ M) := diff_matching_isMatching hP
+  have M'_matched_vertexSet : V(P, E(P) \ M) = V(P) := hP.diff_matching_vertexSet hM
+  have M'_encard : 2 * (E(P) \ M).encard = V(P).encard := by
+    rw [← M'_isMatching.matched_vertexSet_encard_eq, M'_matched_vertexSet]
+  have M_matching : P.IsMatching (E(P) ∩ M) :=
+    hM.anti_left' hP.le
+  have M_matched_vertexSet : V(P, E(P) ∩ M) = {x ∈ V(P) | P.eDegree x = 2} :=
+    hP.matched_vertexSet_eq'
+  have M_encard : 2 * (E(P) ∩ M).encard = V(P, E(P) ∩ M).encard :=
+    M_matching.matched_vertexSet_encard_eq.symm
+  obtain (h_top|h_ne_top) := em (V(P).encard = ⊤)
+  · rw [h_top, ENat.mul_eq_top_iff] at M'_encard
+    obtain (h|h) := M'_encard
+    · enat_to_nat
+    rw [h.2]
+    exact le_top
+  have VP_fin : V(P).Finite := by
+    rw [← ne_eq, encard_ne_top_iff] at h_ne_top
+    assumption
+  have VPM_fin : V(P, E(P) ∩ M).Finite :=
+    VP_fin.subset (incVertexSet_subset _ _)
+  suffices hssub : V(P, E(P) ∩ M) ⊂ V(P)
+  · have hlt := VPM_fin.encard_lt_encard hssub
+    enat_to_nat!; omega
+  rw [ssubset_iff_exists]
+  refine ⟨incVertexSet_subset _ _, ?_⟩
+  obtain ⟨x, hx⟩ := hP.exists_isLeaf
+  refine ⟨x, hx.mem, ?_⟩
+  rintro ⟨e, hePM, hex⟩
+  refine hP.no_match_leaf hx.eDegree ?_
+  refine ⟨e, hePM.2, hex.of_le hP.le⟩
 
-end IsMatching
+lemma IsAugmenter.matching_encard_add_one_le_symmDiff_matching_encard [P.Loopless]
+    (hM : G.IsMatching M) (hP: G.IsAugmenter M P) : M.encard + 1 ≤ (E(P) ∆ M).encard := by
+  have hdisj : Disjoint (E(P) \ M) (M \ E(P)) := disjoint_sdiff_sdiff
+  conv_rhs => rw [Set.symmDiff_def, encard_union_eq hdisj, add_comm]
+  conv_lhs => rw [show M = (M \ E(P)) ∪ (M ∩ E(P)) by grind, encard_union_eq disjoint_sdiff_inter,
+    add_assoc]
+  obtain (h_top|h_ne_top) := em ((M \ E(P)).encard = ⊤)
+  · simp only [h_top, top_add, le_refl]
+  refine (ENat.add_le_add_iff_left h_ne_top).mpr ?_
+  rw [inter_comm]
+  exact hP.matching_encard_add_one_le_diff_matching_encard hM
 
 -- for finite graphs then (or more generally, graphs with finite matching number),
 -- there must not be an augmenting path whenever we have a max matching
-lemma IsMaxMatching.not_isAugPath (hM : G.IsMaxMatching M) (P : Graph α β) : ¬ hM.IsAugPath P := by
-  sorry
+lemma IsMaxMatching.not_isAugmenter [G.EdgeFinite]
+    (hM : G.IsMaxMatching M) (P : Graph α β) [P.Loopless] :
+    ¬ G.IsAugmenter M P := by
+  intro hP
+  -- TODO: wish this would be automatically detected by `enat_to_nat`
+  have M_encard_fin : M.encard < ⊤ := by
+    rw [encard_lt_top_iff]
+    refine Finite.subset edgeSet_finite hM.subset
+  have M'_isMatching : G.IsMatching (E(P) ∆ M) :=
+    hP.symmDiff_matching_isMatching hM.toIsMatching
+  have := hP.matching_encard_add_one_le_symmDiff_matching_encard hM.toIsMatching
+  have := hM.max _ M'_isMatching
+  enat_to_nat!; omega
 
 /-
  sketch of other direction:
@@ -1189,6 +1307,193 @@ lemma IsMaxMatching.not_isAugPath (hM : G.IsMaxMatching M) (P : Graph α β) : �
  so there must be a component which is a path and has more edges from M' than from M;
  thus this component must be an augmenting path.
 -/
+
+@[simp]
+lemma Subgraph.ofEdge_inc_iff (F : Set β) :
+    (Subgraph.ofEdge G F).val.Inc e x ↔ e ∈ F ∧ G.Inc e x := by
+  simp [Inc]
+
+@[simp]
+lemma Subgraph.ofEdge_incEdges_eq (F : Set β) :
+    E(Subgraph.ofEdge G F, x) = E(G, x) ∩ F := by
+  ext e; simp [IncEdges]; rw [and_comm]
+
+lemma IsCycle.regular (h : G.IsCycle) : G.Regular 2 := by
+  rw [isCycle_iff_exists_isCyclicWalk_eq] at h
+  obtain ⟨C, hC, heq⟩ := h
+  rw [← heq]
+  exact hC.toGraph_regular
+
+private
+lemma symmDiff_matching_edge_at
+    [G.Loopless]
+    (hM : G.IsMatching M) (hM' : G.IsMatching M')
+    (hle : H ≤ Subgraph.ofEdge G (M ∆ M'))
+    (hx : x ∈ V(H)) (hex : e ∈ E(H, x)) (hfx : f ∈ E(H, x)) (hne : e ≠ f) (heM : e ∈ M) :
+    f ∈ M' := by
+  have h_edge : ∀ e ∈ E(H), (e ∈ M \ M') ∨ (e ∈ M' \ M) := by
+    intro e he
+    have := edgeSet_mono hle
+    simp at this
+    apply this.2 at he
+    rw [Set.symmDiff_def] at he
+    exact he
+  by_contra! hfM
+  replace hfM : f ∈ M := by
+    have := h_edge f (H.incEdges_subset x hfx)
+    grind only [= mem_diff]
+  -- here is a case where matching is baring its teeth...
+  sorry
+
+
+
+-- TODO: what is the easiest way of proving this?
+private
+lemma symmDiff_matching_cycle_edge_encard
+    [G.Loopless]
+    (hM : G.IsMatching M) (hM' : G.IsMatching M')
+    (hHP : H.IsCompOf (Subgraph.ofEdge G (M ∆ M')))
+    (h_cycle : H.IsCycle) :
+    (E(H) ∩ M).encard = (E(H) ∩ M').encard := by
+
+  -- any edge in H must be in exactly one of M or M'
+  have h_edge : ∀ e ∈ E(H), (e ∈ M \ M') ∨ (e ∈ M' \ M) := by
+    intro e he
+    have := edgeSet_mono hHP.le
+    simp at this
+    apply this.2 at he
+    rw [Set.symmDiff_def] at he
+    exact he
+
+  have _ : H.Loopless :=
+    ‹G.Loopless›.mono (hHP.le.trans <| Subgraph.le _)
+
+  have h_vx : ∀ x ∈ V(H), x ∈ V(H, M) ∧ x ∈ V(H, M') := by
+    intro x hx
+    -- H is 2-regular, so there are two edges
+    have hx_edges := h_cycle.regular hx
+    -- TODO: can you avoid needing `change` here?
+    change H.eDegree x = 2 at hx_edges
+    rw [eDegree_eq_encard_inc, encard_eq_two] at hx_edges
+    obtain ⟨e, f, hne, heq⟩ := hx_edges
+    wlog heM : e ∉ M generalizing e f with aux
+    · refine aux f e hne.symm (by rw [heq, pair_comm]) ?_
+      simp at heM
+      intro hfM
+      have h_encard : E(H ↾ M, x).encard = 2 := by
+        sorry
+      have h_encard₂ : E(G ↾ M, x).encard = 1 := by
+        rw [← eDegree_eq_encard_inc, hM.eDegree_eq_one]
+        sorry
+      have h_sub : E(H ↾ M, x) ⊆ E(G ↾ M, x) := by
+        refine incEdges_mono ?_ _
+        rw [le_edgeRestrict_iff]
+        refine ⟨edgeRestrict_le.trans <| hHP.le.trans <| Subgraph.le _, ?_⟩
+        simp
+      apply encard_le_encard at h_sub
+      enat_to_nat! <;> omega
+    sorry
+  -- direct soln might be easiest
+  -- for all x ∈ H, (H ↾ M).eDegree x = (H ↾ M').eDegree x = 1
+  --
+
+  -- suppose not. then wlog suppose |E(H) ∩ M| < |E(H) ∩ M'|.
+  -- now, let e ∈ E(H) ∩ (M' \ M)
+  --
+  sorry
+
+lemma exists_isAugmenter_of_matching_encard_lt
+    [G.Loopless]
+    (hM : G.IsMatching M) (hM' : G.IsMatching M') (hlt : M.encard < M'.encard) :
+    ∃ P, G.IsAugmenter M P := by
+  let P := Subgraph.ofEdge G (M ∆ M')
+  have P_loopless : P.val.Loopless :=
+    ‹G.Loopless›.mono P.2
+  have P_degPos : P.val.DegreePos := by
+    rw [degreePos_iff']
+    intro x ⟨e, he⟩
+    grw [← ENat.one_le_iff_ne_zero, ← encard_inc_le_eDegree, one_le_encard_iff_nonempty,
+      Subgraph.ofEdge_incEdges_eq]
+    refine ⟨e, he.2, he.1⟩
+  have P_maxDegreeLE : P.val.MaxDegreeLE 2 := by
+    rw [maxDegreeLE_iff']
+    intro x hx
+    simp only [eDegree_eq_encard_inc, P, Subgraph.ofEdge_incEdges_eq]
+    rw [show E(G, x) ∩ M ∆ M' = E(G, x) ∩ (M \ M') ∪ E(G, x) ∩ (M' \ M) by grind]
+    rw [encard_union_eq (by grind)]
+    rw [show (2 : ℕ) = (1 : ℕ∞) + 1 by enat_to_nat]
+    refine add_le_add ?_ ?_
+    all_goals
+      rw [← incEdges_edgeRestrict]
+      refine IsMatching.incEdges_encard_le_one ?_ _
+      exact IsMatching.anti_right ‹_› diff_subset
+  have P_leaf : ∃ x, P.val.IsLeaf x := by
+    -- cardinality argument?
+    -- oh god this is going to be so painful if |M'| = ⊤
+    -- suppose there are no leaves.
+    -- then the graph must be 2-regular, and all components must be cycles
+    -- per component, if the component is a cycle, then the number of edges in M
+    -- must equal the number of edges in M'
+    -- so since every component is a cycle, we must have |M| = |M'|, a contradiction.
+    sorry
+
+  -- TODO:
+  -- not just directly P, we want just the one augmenting path that must exist?
+  obtain ⟨P', hP'P, hP'_encard⟩ :
+     ∃ P' : Graph α β, P'.IsCompOf P ∧ (E(P') ∩ M).encard < (E(P') ∩ M').encard := by
+    sorry
+  have hP'_path : P'.IsPathGraph := by
+    sorry
+
+  have P'_deg : ∀ x ∈ V(P'), P'.eDegree x = 1 ∨ P'.eDegree x = 2 := by
+    intro x hx
+    have := P_maxDegreeLE x
+    rw [degreePos_iff'] at P_degPos
+    have := P_degPos (vertexSet_mono hP'P.le hx)
+    rw [hP'P.isClosedSubgraph.eDegree_eq hx]
+    enat_to_nat! <;> omega
+  have _ : P'.Loopless := ‹P.val.Loopless›.mono hP'P.le
+
+  refine ⟨P', ?_⟩
+  constructor
+  · exact hP'P.le.trans P.2
+  · exact P'_deg
+  · -- P' is a path, so we must have a leaf?
+    refine ⟨hP'_path.first, hP'_path.isLeaf_first ?_⟩
+    rw [← encard_ne_zero]
+    -- TODO: this is as annoying case where i wish we could just have a tactic that clears this
+    -- obligation.
+    -- we have (E(P') ∩ M).encard < (E(P') ∩ M').encard, and we want to show that E(P').encard ≠ 0
+    intro bad
+    have : (E(P') ∩ M').encard ≤ E(P').encard :=
+      encard_le_encard (inter_subset_left)
+    enat_to_nat! <;> omega
+
+  · intro x hx
+    -- one of the two edges must be from M
+    rw [eDegree_eq_encard_inc, encard_eq_two] at hx
+    obtain ⟨e, f, hne, heq⟩ := hx
+    wlog heM : e ∈ M generalizing e f with aux
+    · specialize aux f e hne.symm (by rw [heq, pair_comm])
+      have heM' : e ∈ M' := by
+        sorry
+      have hfM : f ∈ M := by
+        sorry
+      exact aux hfM
+    refine ⟨e, heM, ?_⟩
+    change e ∈ E(P', x)
+    simp [heq]
+  -- there is at least one augmenting path...
+  -- handshake?
+  -- 2|E(P')| = ∑ P'.eDegree x
+  -- 2|E(P' ↾ M)| = ∑ (P' ↾ M).eDegree x = ∑ |E(P', x) ∩ M|
+  -- 2|E(P' ↾ M')| = ∑ (P' ↾ M').eDegree x = ∑ |E(P', x) ∩ M'|
+  -- 2|E(P')| = 2|E(P' ↾ M)| + 2|E(P' ↾ M')|
+
+  sorry
+
+
+
 
 /-! ### Structure of graph from maximal matching -/
 
