@@ -13,26 +13,11 @@ structure PreClosureMatroid (α : Type*) where
   (closure_subset_closure' : ∀ ⦃X Y : Set α⦄, X ⊆ Y → Y ⊆ E → closure X ⊆ closure Y )
   (closure_closure_eq_closure' : ∀ ⦃X⦄, X ⊆ E → closure (closure X) = closure X)
   (closure_exchange : ∀ ⦃X e f⦄, X ⊆ E → e ∈ E → f ∈ E →
-      f ∈ closure (insert e X) \ closure X → e ∈ closure (insert f X) \ X)
+      f ∈ closure (insert e X) → f ∉ closure X → e ∈ closure (insert f X))
   (closure_inter_inter_ground : ∀ X, closure (X ∩ E) ∩ E = closure X)
   (Indep : Set α → Prop)
   (indep_iff : ∀ ⦃I⦄, Indep I ↔ (∀ e ∈ I, e ∉ closure (I \ {e})) ∧ I ⊆ E)
 
-
-
--- /-- An auxiliary object corresponding to a matroid as defined by the closure axioms.  -/
--- structure ClosureMatroid (α : Type*) where
---   (E : Set α)
---   (closure : Set α → Set α)
---   (subset_closure_self : ∀ ⦃X⦄, X ⊆ E → X ⊆ closure X)
---   (closure_subset_closure' : ∀ ⦃X Y : Set α⦄, X ⊆ Y → Y ⊆ E → closure X ⊆ closure Y )
---   (closure_closure_eq_closure' : ∀ ⦃X⦄, X ⊆ E → closure (closure X) = closure X)
---   (closure_exchange : ∀ ⦃X e f⦄, X ⊆ E → e ∈ E → f ∈ E →
---       f ∈ closure (insert e X) \ closure X → e ∈ closure (insert f X) \ X)
---   (Indep : Set α → Prop)
---   (indep_iff : ∀ ⦃I⦄, Indep I ↔ (∀ e ∈ I, e ∉ closure (I \ {e})) ∧ I ⊆ E)
---   (indep_maximal : ∀ ⦃X⦄, X ⊆ E → ExistsMaximalSubsetProperty Indep X)
---   (closure_inter_inter_ground : ∀ X, closure (X ∩ E) ∩ E = closure X)
 namespace PreClosureMatroid
 
 variable {M : PreClosureMatroid α}

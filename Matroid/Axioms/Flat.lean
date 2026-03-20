@@ -133,14 +133,12 @@ protected def closureMatroid (M : FlatMatroid α) : ClosureMatroid α where
   closure_subset_closure' := fun _ _ h _ ↦ M.closure_subset_closure h
   closure_closure_eq_closure' _ _ := M.closure_closure _
   closure_exchange := by
-    simp only [mem_diff, and_imp]
     refine fun X e f hX heE hfE hfeX hfX ↦ ?_
     have heXcl : e ∉ M.closure X := by
       refine fun heXcl ↦ hfX (mem_of_mem_of_subset hfeX ?_)
       rw [← M.closure_closure X]
       exact M.closure_subset_closure (insert_subset heXcl (M.subset_closure hX))
-    have heX : e ∉ X := notMem_subset (M.subset_closure hX) heXcl
-    refine ⟨by_contra fun hcon ↦ ?_, heX⟩
+    by_contra hcon
     suffices hcl : M.closure (insert e X) = M.closure (insert f X) by
       rw [← hcl] at hcon
       exact hcon (mem_closure_insert_self M heE X)

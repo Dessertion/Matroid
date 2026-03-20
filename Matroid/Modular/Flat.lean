@@ -255,66 +255,51 @@ lemma IsLine.isModularFlat_of_forall_isHyperplane {L : Set α} (hL : M.IsLine L)
   rw [← lt_top_iff_ne_top]
   exact (M.eLocalConn_le_eRk_left _ _).trans_lt (lt_top_iff_ne_top.2 (by simp [hL.eRk]))
 
+lemma IsModularFlat.exists_mem_mem_closure_insert (hX : M.IsModularFlat X) {C : Set α}
+    (he : e ∉ M.closure C) (heXC : e ∈ M.closure (X ∪ C)) :
+    ∃ f ∈ M.closure (insert e C), f ∈ X ∧ f ∉ M.closure C := by
+  obtain ⟨I, hIXC, hIX, hIC, hIi⟩ := (hX.isModularPair (M.closure_isFlat C)).exists_common_isBasis
+  by_cases heIX : e ∈ I
+  · exact ⟨e, M.mem_closure_of_mem' (mem_insert ..), by grind, he⟩
+  have hss : I \ X ⊆ I ∩ M.closure C := by grind
+  have hi : M.Indep (insert e (I \ X)) := by
+    grw [(hIXC.indep.diff _).insert_indep_iff_of_notMem (by grind), hss, hIC.closure_eq_closure,
+      closure_closure, mem_diff, and_iff_right (mem_ground_of_mem_closure heXC)]
+    assumption
+  have hP : M.IsPoint (M.closure (insert e (I \ X)) ∩ X) := by
+    refine ⟨(M.closure_isFlat ..).inter hX.isFlat, ?_⟩
+    rw [inter_comm, ← (hX.isModularPair (M.closure_isFlat ..)).eLocalConn_eq_eRk_inter,
+      eLocalConn_closure_right, hIX.eLocalConn_eq_of_disjoint' hi.isBasis_self (by grind),
+      union_comm, insert_union, diff_union_inter, nullity_insert_eq_add_one _ heIX,
+      hIXC.indep.nullity_eq, zero_add]
+    rwa [hIXC.closure_eq_closure, closure_union_closure_right_eq]
+  obtain ⟨f, hfbl, hfcl⟩ := hP.exists_eq_closure_isNonloop
+  obtain ⟨hfI, hfX⟩ : f ∈ M.closure (insert e (I \ X)) ∩ X :=
+    hfcl ▸ M.mem_closure_self _ hfbl.mem_ground
+  have hsk : M.Skew (I \ X) (I ∩ X) := by
+    rw [(hIXC.indep.subset (by simp)).skew_iff_disjoint]
+    exact disjoint_sdiff_inter
+  have hfIX : f ∉ M.closure (I \ X) := fun hfcl' ↦ hfbl.not_isLoop <|
+    hsk.closure_skew.inter_subset_loops ⟨hfcl', by rwa [hIX.closure_eq_closure, hX.isFlat.closure]⟩
+  have hecl := mem_closure_insert hfIX hfI
+  grw [hss, closure_insert_congr_right hIC.closure_eq_closure,
+      closure_insert_closure_eq_closure_insert] at hfI
+  refine ⟨f, hfI, hfX, fun hfcl ↦ he (mem_of_mem_of_subset hecl ?_)⟩
+  exact M.closure_subset_closure_of_subset_closure <| insert_subset hfcl <| by grind
+
+lemma IsModularFlat.exists_mem_closure_insert_of_isFlat (hX : M.IsModularFlat X) (hF : M.IsFlat F)
+    (he : e ∉ F) (heXC : e ∈ M.closure (X ∪ F)) : ∃ f ∈ M.closure (insert e F), f ∈ X ∧ f ∉ F := by
+  convert hX.exists_mem_mem_closure_insert (by rwa [hF.closure]) heXC
+  simp [hF.closure]
+
 /-- If `X` is a modular flat, then in any contraction-minor in which `X` spans a isNonloop `e`,
-there is an element of `X` parallel to `e`.
-TODO: clean up this proof. -/
+there is an element of `X` parallel to `e`.-/
 lemma IsModularFlat.exists_parallel_mem_of_contract (hX : M.IsModularFlat X) {C : Set α}
     (he : (M ／ C).IsNonloop e) (hecl : e ∈ (M ／ C).closure X) :
     ∃ f ∈ X, (M ／ C).Parallel e f := by
-  wlog hC : M.Indep C with aux
-  · obtain ⟨I, hI⟩ := M.exists_isBasis' C
-    rw [hI.contract_eq_contract_delete, delete_isNonloop_iff] at he
-    rw [hI.contract_eq_contract_delete, delete_closure_eq] at hecl
-    obtain ⟨f, hfX, hef⟩ := aux hX (C := I) he.1
-      (mem_of_mem_of_subset hecl.1 (closure_subset_closure _ diff_subset)) hI.indep
-    refine ⟨f, hfX, ?_⟩
-    rw [hI.contract_eq_contract_delete, delete_parallel_iff, and_iff_right he.2, and_iff_right hef]
-    intro ⟨hfC, hfI⟩
-    have hIf := hef.isNonloop_right
-    rw [contract_isNonloop_iff, hI.closure_eq_closure] at hIf
-    exact hIf.2 <| M.mem_closure_of_mem' hfC
-  have heE := he.of_contract.mem_ground
-
-  have hnl := contract_isNonloop_iff.1 he
-  rw [contract_closure_eq] at hecl
-
-  obtain ⟨J, hJ, hJX, hJI, hi⟩ := (hX.isModularPair (M.closure_isFlat C)).exists_common_isBasis
-  have hJE := hJ.indep.subset_ground
-  have hsk := hJ.indep.subset_skew_diff (J := J ∩ X) inter_subset_left
-
-  rw [skew_iff_closure_skew_left (inter_subset_left.trans hJE), diff_self_inter,
-    hJX.closure_eq_closure, ← skew_iff_closure_skew_left hX.subset_ground] at hsk
-
-  have hnsk : ¬ M.Skew X (M.closure (insert e (J \ X)))
-  · rw [← skew_iff_closure_skew_right (insert_subset heE hsk.subset_ground_right),
-      skew_comm, skew_insert_iff heE, diff_union_self,
-      closure_union_congr_left hJ.closure_eq_closure, union_comm X, union_assoc, union_self,
-      closure_union_closure_left_eq, union_comm]
-    simp only [hsk.symm, hecl.1, forall_const, true_and]
-    refine notMem_subset (M.closure_subset_closure_of_subset_closure ?_) hnl.2
-    rw [diff_subset_iff]
-    exact hJ.subset
-
-  by_contra! hcon
-
-  refine hnsk <| (hX.isModularPair (M.closure_isFlat _)).skew_of_inter_subset_loops ?_
-  nth_rewrite 1 [← diff_union_inter X (M.closure (J \ X)), union_inter_distrib_right]
-  rw [union_subset_iff, inter_assoc,
-    inter_eq_self_of_subset_left (M.closure_subset_closure (subset_insert _ _)),
-    and_iff_left hsk.closure_skew_right.inter_subset_loops, ← inter_diff_right_comm, loops,
-    diff_subset_iff, union_eq_self_of_subset_right (M.closure_subset_closure (empty_subset _))]
-
-  refine fun f ⟨hfX, hfcl⟩  ↦ by_contra fun hfcl' ↦ hcon f hfX ?_
-
-  rw [he.parallel_iff_mem_closure, contract_closure_eq, singleton_union, mem_diff,
-    and_iff_left hecl.2]
-
-  refine mem_of_mem_of_subset (Matroid.closure_exchange ⟨hfcl, hfcl'⟩).1 ?_
-  refine M.closure_subset_closure_of_subset_closure (insert_subset ?_ ?_)
-  · exact M.mem_closure_of_mem' (mem_insert _ _) (mem_ground_of_mem_closure hfcl)
-  rw [diff_subset_iff]
-  exact hJ.subset.trans <| union_subset_union_right _
-    (M.closure_subset_closure (subset_insert _ _))
+  simp only [contract_closure_eq, mem_diff, contract_isNonloop_iff] at hecl he
+  refine Exists.imp (fun f hf ↦ ?_) <| hX.exists_mem_mem_closure_insert he.2 hecl.1
+  grind [contract_parallel_iff]
 
 lemma IsFlat.isModularFlat_iff_forall_contract_exists_parallel (hX : M.IsFlat X) :
     M.IsModularFlat X ↔ ∀ ⦃C : Set α⦄ ⦃e⦄, Disjoint C X → (M ／ C).IsNonloop e →
