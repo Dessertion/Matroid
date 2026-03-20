@@ -587,19 +587,19 @@ section Finite
 
 variable {a b n : ℕ}
 
-/-- `M.IsFinRankUniform a` means that `M` is a uniform matroid of rank `a ∈ ℕ`. -/
+/-- `M.IsFiniteRankUniform a` means that `M` is a uniform matroid of rank `a ∈ ℕ`. -/
 @[mk_iff]
-structure IsFinRankUniform (M : Matroid α) (a : ℕ) : Prop where
+structure IsFiniteRankUniform (M : Matroid α) (a : ℕ) : Prop where
   eRank_eq : M.eRank = a
   isUniform : M.IsUniform
 
-lemma IsFinRankUniform.le (h : M.IsFinRankUniform a) : a ≤ M.E.encard := by
+lemma IsFiniteRankUniform.le (h : M.IsFiniteRankUniform a) : a ≤ M.E.encard := by
   grw [← h.eRank_eq, M.eRank_le_encard_ground]
 
-lemma IsFinRankUniform.rankFinite (h : M.IsFinRankUniform a) : M.RankFinite := by
+lemma IsFiniteRankUniform.rankFinite (h : M.IsFiniteRankUniform a) : M.RankFinite := by
   simp [← eRank_ne_top_iff, h.eRank_eq]
 
-lemma IsFinRankUniform.eq_unifOn (h : M.IsFinRankUniform a) : M = unifOn M.E a := by
+lemma IsFiniteRankUniform.eq_unifOn (h : M.IsFiniteRankUniform a) : M = unifOn M.E a := by
   refine ext_indep rfl fun I hIE ↦ ?_
   obtain hI | hI := M.indep_or_dep hIE
   · simp [hI.encard_le_eRank.trans h.eRank_eq.le, hI, hIE]
@@ -611,35 +611,36 @@ lemma IsFinRankUniform.eq_unifOn (h : M.IsFinRankUniform a) : M = unifOn M.E a :
   rintro rfl
   exact hI.not_indep hJI.indep
 
-lemma IsFinRankUniform.exists_eq_unifOn (h : M.IsFinRankUniform a) :
+lemma IsFiniteRankUniform.exists_eq_unifOn (h : M.IsFiniteRankUniform a) :
     ∃ E, M = unifOn E a ∧ a ≤ E.encard :=
   ⟨M.E, h.eq_unifOn, by grw [← h.eRank_eq, ← M.eRank_le_encard_ground]⟩
 
-lemma unifOn_isFinRankUniform (haE : a ≤ E.encard) : (unifOn E a).IsFinRankUniform a :=
+lemma unifOn_isFiniteRankUniform (haE : a ≤ E.encard) : (unifOn E a).IsFiniteRankUniform a :=
   ⟨unifOn_eRank_eq' haE, by simp⟩
 
-lemma isFinRankUniform_iff_eq_unifOn :
-    M.IsFinRankUniform a ↔ M = unifOn M.E a ∧ a ≤ M.E.encard := by
+lemma isFiniteRankUniform_iff_eq_unifOn :
+    M.IsFiniteRankUniform a ↔ M = unifOn M.E a ∧ a ≤ M.E.encard := by
   refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩
   · obtain ⟨E, rfl, haE⟩ := h.exists_eq_unifOn
     simpa
   rw [h.1]
-  exact unifOn_isFinRankUniform h.2
+  exact unifOn_isFiniteRankUniform h.2
 
-lemma IsFinRankUniform.indep_iff (hM : M.IsFinRankUniform a) :
+lemma IsFiniteRankUniform.indep_iff (hM : M.IsFiniteRankUniform a) :
     M.Indep I ↔ I.encard ≤ a ∧ I ⊆ M.E := by
   obtain ⟨E, rfl, hle⟩ := hM.exists_eq_unifOn
   simp
 
-lemma IsFinRankUniform.isCircuit_iff (hM : M.IsFinRankUniform a) :
+lemma IsFiniteRankUniform.isCircuit_iff (hM : M.IsFiniteRankUniform a) :
     M.IsCircuit C ↔ C.encard = a + 1 ∧ C ⊆ M.E := by
   obtain ⟨E, rfl, hle⟩ := hM.exists_eq_unifOn
   rw [unifOn_isCircuit_iff, unifOn_ground_eq]
 
-lemma IsFinRankUniform.dep_iff (hM : M.IsFinRankUniform a) : M.Dep X ↔ a < X.encard ∧ X ⊆ M.E := by
+lemma IsFiniteRankUniform.dep_iff (hM : M.IsFiniteRankUniform a) :
+    M.Dep X ↔ a < X.encard ∧ X ⊆ M.E := by
   grind [Dep, hM.indep_iff]
 
-lemma IsFinRankUniform.isBase_iff (hM : M.IsFinRankUniform a) :
+lemma IsFiniteRankUniform.isBase_iff (hM : M.IsFiniteRankUniform a) :
     M.IsBase B ↔ B.encard = a ∧ B ⊆ M.E := by
   by_cases hBE : B ⊆ M.E
   · obtain ⟨E, rfl, hle⟩ := hM.exists_eq_unifOn
@@ -647,43 +648,44 @@ lemma IsFinRankUniform.isBase_iff (hM : M.IsFinRankUniform a) :
     assumption
   exact iff_of_false (fun h ↦ hBE h.subset_ground) <| by simp [hBE]
 
-lemma IsFinRankUniform.isCocircuit_iff (hM : M.IsFinRankUniform a) :
+lemma IsFiniteRankUniform.isCocircuit_iff (hM : M.IsFiniteRankUniform a) :
     M.IsCocircuit C ↔ (M.E \ C).encard + 1 = a ∧ C ⊆ M.E := by
   obtain ⟨E, rfl, hle⟩ := hM.exists_eq_unifOn
   rwa [unifOn_ground_eq, unifOn_isCocircuit_iff]
 
-lemma IsFinRankUniform.spanning_iff (hM : M.IsFinRankUniform a) :
+lemma IsFiniteRankUniform.spanning_iff (hM : M.IsFiniteRankUniform a) :
     M.Spanning X ↔ a ≤ X.encard ∧ X ⊆ M.E := by
   obtain ⟨E, rfl, hle⟩ := hM.exists_eq_unifOn
   by_cases! hXE : ¬ X ⊆ E; grind [Spanning.subset_ground]
   rw [unifOn_spanning_iff hle hXE, unifOn_ground_eq, and_iff_left hXE]
 
 /-- A uniform matroid whose rank is finite is one of the obvious ones. -/
-lemma IsUniform.isFinRankUniform [M.RankFinite] (hM : M.IsUniform) :
-    ∃ a, M.IsFinRankUniform a :=
+lemma IsUniform.isFiniteRankUniform [M.RankFinite] (hM : M.IsUniform) :
+    ∃ a, M.IsFiniteRankUniform a :=
   ⟨M.rank, M.cast_rank_eq.symm, hM⟩
 
 /-- A finitary non-free uniform matroid is a finite-rank uniform matroid. -/
-lemma IsUniform.isFinRankUniform_of_finitary [M.Finitary] [M✶.RankPos] (hM : M.IsUniform) :
-    ∃ a, M.IsFinRankUniform a := by
-  suffices M.RankFinite from hM.isFinRankUniform
+lemma IsUniform.isFiniteRankUniform_of_finitary [M.Finitary] [M✶.RankPos] (hM : M.IsUniform) :
+    ∃ a, M.IsFiniteRankUniform a := by
+  suffices M.RankFinite from hM.isFiniteRankUniform
   obtain ⟨C, hC⟩ := M.exists_isCircuit
   grw [← eRank_ne_top_iff, ← (hM.spanning_of_dep hC.dep).eRk_eq, ← lt_top_iff_ne_top,
     eRk_le_encard, encard_lt_top_iff]
   exact hC.finite
 
-lemma IsUniform.eq_freeOn_or_isFinRankUniform [M.Finitary] (hM : M.IsUniform) :
-    ∃ (E : Set α), M = freeOn E ∨ ∃ a, M.IsFinRankUniform a := by
+lemma IsUniform.eq_freeOn_or_isFiniteRankUniform [M.Finitary] (hM : M.IsUniform) :
+    ∃ (E : Set α), M = freeOn E ∨ ∃ a, M.IsFiniteRankUniform a := by
   obtain ⟨E, rfl⟩ | hr := M.exists_eq_freeOn_or_rankPos_dual
   · exact ⟨E, .inl rfl⟩
-  simp [hM.isFinRankUniform_of_finitary]
+  simp [hM.isFiniteRankUniform_of_finitary]
 
 /-- `M.IsFiniteUniform a b n` means that `M` is a finite uniform matroid of rank `a` and corank `b`,
 with `n` elements.
 
 We have `a + b = n` for every such matroid, but the redundancy helps with duality. -/
 @[mk_iff]
-structure IsFiniteUniform (M : Matroid α) (a b n : ℕ) : Prop extends M.IsFinRankUniform a where
+structure IsFiniteUniform (M : Matroid α) (a b : ℕ) (n : ℕ := a + b) : Prop
+    extends M.IsFiniteRankUniform a where
   encard_eq : M.E.encard = n
   eRank_dual_eq : M✶.eRank = b
 
@@ -709,14 +711,14 @@ lemma IsUniform.exists_isFiniteUniform_of_finite (hM : M.IsUniform) [M.Finite] :
   have hr' := M✶.cast_rank_eq
   exact ⟨M.rank, M✶.rank, _, ⟨⟨hr.symm, hM⟩, hcard, hr'.symm⟩, hr, hr', hcard.symm⟩
 
-lemma IsFinRankUniform.exists_isFiniteUniform_of_finite (h : M.IsFinRankUniform a) [M.Finite] :
-    ∃ b n, M.IsFiniteUniform a b n ∧ b = M✶.eRank ∧ n = M.E.encard := by
+lemma IsFiniteRankUniform.exists_isFiniteUniform_of_finite (h : M.IsFiniteRankUniform a)
+    [M.Finite] : ∃ b n, M.IsFiniteUniform a b n ∧ b = M✶.eRank ∧ n = M.E.encard := by
   obtain ⟨a', b, n, hM1, ha, hb, hn⟩ := h.isUniform.exists_isFiniteUniform_of_finite
   rw [h.eRank_eq, ENat.coe_inj] at ha
   exact ⟨b, n, ha ▸ hM1, hb, hn⟩
 
 lemma isFiniteUniform_dual_iff : M✶.IsFiniteUniform a b n ↔ M.IsFiniteUniform b a n := by
-  simp only [isFiniteUniform_iff, isFinRankUniform_iff, uniform_dual_iff, dual_ground, dual_dual]
+  simp only [isFiniteUniform_iff, isFiniteRankUniform_iff, uniform_dual_iff, dual_ground, dual_dual]
   tauto
 
 alias ⟨IsFiniteUniform.of_dual, IsFiniteUniform.dual⟩ := isFiniteUniform_dual_iff
@@ -724,7 +726,7 @@ alias ⟨IsFiniteUniform.of_dual, IsFiniteUniform.dual⟩ := isFiniteUniform_dua
 lemma isFiniteUniform_unifOn {E : Set α} (hE : E.Finite) (a : ℕ) (haE : a ≤ E.encard) :
     ∃ b n, (unifOn E a).IsFiniteUniform a b n ∧ n = E.encard := by
   have : (unifOn E a).Finite := ⟨hE⟩
-  obtain ⟨b, n, habc, hb, hn⟩ := (unifOn_isFinRankUniform haE).exists_isFiniteUniform_of_finite
+  obtain ⟨b, n, habc, hb, hn⟩ := (unifOn_isFiniteRankUniform haE).exists_isFiniteUniform_of_finite
   exact ⟨b, n, habc, hn⟩
 
 lemma IsFiniteUniform.dual_eq_self (h : M.IsFiniteUniform a a b) : M✶ = M := by
@@ -732,151 +734,18 @@ lemma IsFiniteUniform.dual_eq_self (h : M.IsFiniteUniform a a b) : M✶ = M := b
   rw [unifOn_dual_eq']
   rw [← unifOn_ground_eq E, h.encard_eq, ← h.add_eq, Nat.cast_add]
 
-/-- `M` is isomorphic to a rank-`a` uniform matroid on a ground set of size `b`.
-Probably deprecated in favour of `IsFiniteUniform`. -/
-@[mk_iff]
-structure IsFiniteRankUniform (M : Matroid α) (a : ℕ) (b : ℕ∞) : Prop where
-  encard_eq : M.E.encard = b
-  eRank_eq : M.eRank = a
-  isUniform : M.IsUniform
-
-lemma IsFiniteRankUniform.le {a : ℕ} {b : ℕ∞} (h : M.IsFiniteRankUniform a b) : a ≤ b := by
-  grw [← h.eRank_eq, M.eRank_le_encard_ground, h.encard_eq]
-
-lemma IsFiniteRankUniform.finite (hM : M.IsFiniteRankUniform a b) : M.Finite :=
-  ⟨encard_lt_top_iff.1 <| by simp [hM.encard_eq]⟩
-
-lemma IsFiniteRankUniform.exists_eq_unifOn {b : ℕ∞} (hM : M.IsFiniteRankUniform a b) :
-    ∃ (E : Set α), E.encard = b ∧ M = unifOn E a := by
-  refine ⟨M.E, hM.encard_eq, ext_indep rfl fun I hI ↦ ?_⟩
-  rw [unifOn_indep_iff, and_iff_left hI]
-  refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩
-  · grw [h.encard_le_eRank, ← hM.eRank_eq]
-  obtain ⟨J, hJ⟩ := M.exists_isBasis I
-  refine (hM.isUniform.indep_or_spanning I).elim id fun hI ↦ ?_
-  refine Finite.eq_of_subset_of_encard_le' ?_ hJ.subset (h.trans ?_) ▸ hJ.indep
-  · grw [← encard_lt_top_iff, h]
-    simp
-  grw [(hJ.isBase_of_spanning hI).encard_eq_eRank, hM.eRank_eq]
-
-lemma IsFiniteRankUniform.indep_iff {b : ℕ∞} (hM : M.IsFiniteRankUniform a b) :
-    M.Indep I ↔ I.encard ≤ a ∧ I ⊆ M.E := by
-  obtain ⟨E, hE, rfl⟩ := hM.exists_eq_unifOn
-  rw [unifOn_indep_iff, unifOn_ground_eq]
-
-lemma IsFiniteRankUniform.isBase_iff {b : ℕ∞} (hM : M.IsFiniteRankUniform a b) :
-    M.IsBase B ↔ B.encard = a ∧ B ⊆ M.E := by
-  by_cases hBE : B ⊆ M.E
-  · obtain ⟨E, hE, rfl⟩ := hM.exists_eq_unifOn
-    rw [unifOn_isBase_iff _ (by simpa), and_iff_left hBE]
-    grw [hE, hM.le]
-  exact iff_of_false (fun h ↦ hBE h.subset_ground) <| by simp [hBE]
-
-lemma IsFiniteRankUniform.isCocircuit_iff (hM : M.IsFiniteRankUniform a b) :
-    M.IsCocircuit C ↔ C.encard + a = b + 1 ∧ C ⊆ M.E := by
-  obtain ⟨E, hE, rfl⟩ := hM.exists_eq_unifOn
-  wlog hCE : C ⊆ E with aux; grind [IsCocircuit.subset_ground]
-  have hCt : C.encard ≠ ⊤ := by grw [← lt_top_iff_ne_top, hCE]; simp [hE]
-  grw [unifOn_isCocircuit_iff (by simp [hE, hM.le]), ← hE, unifOn_ground_eq,
-    ← encard_diff_add_encard_of_subset hCE, add_comm _ C.encard, add_assoc,
-    ENat.add_eq_add_left_iff, or_iff_left hCt, eq_comm]
-
-lemma IsFiniteRankUniform.spanning_iff {b : ℕ∞} (hM : M.IsFiniteRankUniform a b) :
-    M.Spanning X ↔ a ≤ X.encard ∧ X ⊆ M.E := by
-  wlog hXE : X ⊆ M.E; grind [Spanning.subset_ground]
-  simp_rw [spanning_iff_exists_isBase_subset hXE, hM.isBase_iff, and_iff_left hXE]
-  exact ⟨fun ⟨B, hB, hBX⟩ ↦ by grw [← hB.1, hBX], fun h ↦ by grind [exists_subset_encard_eq h]⟩
-
-lemma IsFiniteRankUniform.unif_isoRestr {b : ℕ∞} (hM : M.IsFiniteRankUniform a b) (h : b' ≤ b) :
-    Nonempty (unif a b' ≤ir M) := by
-  obtain ⟨E, hEb, rfl⟩ := IsFiniteRankUniform.exists_eq_unifOn hM
-  apply unif_isoRestr_unifOn
-  grw [h, hEb]
-
-/-- A finite-rank uniform matroid is one of the obvious ones. -/
-lemma IsUniform.isFiniteRankUniform [M.RankFinite] (hM : M.IsUniform) :
-    ∃ a b, M.IsFiniteRankUniform a b :=
-  ⟨_, _, rfl, M.cast_rank_eq.symm, hM⟩
-
-
-/-- A finitary non-free uniform matroid is one of the obvious ones. -/
-lemma IsUniform.isFiniteRankUniform_of_finitary [M.Finitary] [M✶.RankPos] (hM : M.IsUniform) :
-    ∃ a b, M.IsFiniteRankUniform a b := by
-  obtain ⟨C, hC⟩ := M.exists_isCircuit
-  obtain ⟨e, heC⟩ := hC.nonempty
-  obtain hCi | hCs := hM.indep_or_spanning C
-  · exact (hC.not_indep hCi).elim
-  have := ((hC.diff_singleton_isBasis heC).isBase_of_spanning hCs).rankFinite_of_finite
-    hC.finite.diff
-  exact hM.isFiniteRankUniform
-
-/-- A finitary non-free uniform matroid is free or is one of the obvious ones. -/
-lemma IsUniform.eq_freeOn_or_isFiniteRankUniform [M.Finitary] (hM : M.IsUniform) :
-    ∃ (E : Set α), M = freeOn E ∨ ∃ a b, M.IsFiniteRankUniform a b := by
-  obtain ⟨E, rfl⟩ | hr := M.exists_eq_freeOn_or_rankPos_dual
-  · exact ⟨E, .inl rfl⟩
-  simp [hM.isFiniteRankUniform_of_finitary]
-
 /-- A finite-rank uniform matroid is one of the obvious ones - maybe use `IsFiniteRankUniform`
 instead  -/
 lemma IsUniform.exists_eq_unifOn [M.RankFinite] (hM : M.IsUniform) :
     ∃ (E : Set α) (k : ℕ), k ≤ E.encard ∧ M = unifOn E k ∧ M.eRank = k := by
-  obtain ⟨E, hE, h_eq⟩ := IsFiniteRankUniform.exists_eq_unifOn ⟨rfl, M.cast_rank_eq.symm, hM⟩
-  obtain rfl : E = M.E := by rw [h_eq, unifOn_ground_eq]
-  exact ⟨M.E, M.rank, by grw [M.cast_rank_eq, M.eRank_le_encard_ground], h_eq, M.cast_rank_eq.symm⟩
+  obtain ⟨k, hk⟩ := hM.isFiniteRankUniform
+  obtain ⟨E, rfl, hkE⟩ := hk.exists_eq_unifOn
+  exact ⟨E, k, hkE, rfl, by simpa⟩
 
 lemma unifOn_isUniform (E : Set α) (k : ℕ) : (unifOn E k).IsUniform := by
   intro X (hX : X ⊆ E)
   rw [unifOn_indep_iff, unifOn_spanning_iff']
   grind
-
-lemma unifOn_isFiniteRank_uniform (hab : a ≤ E.encard) :
-    (unifOn E a).IsFiniteRankUniform a E.encard :=
-  ⟨rfl, unifOn_eRank_eq' hab, unifOn_isUniform ..⟩
-
-lemma IsFiniteRankUniform.dual {a b : ℕ} (hM : M.IsFiniteRankUniform a b) :
-    M✶.IsFiniteRankUniform (b - a) b := by
-  refine ⟨by simp [hM.encard_eq], ?_, hM.isUniform.dual⟩
-  have h_eq := M.eRank_add_eRank_dual
-  rw [hM.encard_eq, hM.eRank_eq] at h_eq
-  enat_to_nat!; lia
-
-lemma IsFiniteRankUniform.dual_of_add {a b : ℕ} (hM : M.IsFiniteRankUniform a (a + b)) :
-    M✶.IsFiniteRankUniform b (a + b) := by
-  simpa using hM.dual
-
-lemma IsFiniteRankUniform.dual_eq_self {a : ℕ} (hM : M.IsFiniteRankUniform a (2 * a)) : M✶ = M := by
-  obtain ⟨E, hE, rfl⟩ := hM.exists_eq_unifOn
-  rw [unifOn_dual_eq_self hE]
-
-lemma IsFiniteRankUniform.bDual_eq_self {a : ℕ} {d : Bool} (hM : M.IsFiniteRankUniform a (2 * a)) :
-    M.bDual d = M := by
-  cases d
-  · rfl
-  exact hM.dual_eq_self
-
-lemma IsFiniteRankUniform.of_dual_self {a : ℕ} (hM : M✶.IsFiniteRankUniform a (2 * a)) :
-    M.IsFiniteRankUniform a (2 * a) := by
-  rwa [← M.dual_dual, hM.dual_eq_self]
-
-lemma IsFiniteRankUniform.of_bDual_self {a : ℕ} {d : Bool}
-    (hM : (M.bDual d).IsFiniteRankUniform a (2 * a)) : M.IsFiniteRankUniform a (2 * a) := by
-  cases d
-  · assumption
-  exact hM.of_dual_self
-
-lemma IsFiniteRankUniform.dual_eq_self₂₄ (hM : M.IsFiniteRankUniform 2 4) : M✶ = M :=
-  hM.dual_eq_self
-
-lemma isFiniteRankUniform_iff_nonempty_iso {a b : ℕ} (hab : a ≤ b) :
-    M.IsFiniteRankUniform a b ↔ Nonempty (M ≂ unif a b) := by
-  rw [nonempty_iso_unif_iff]
-  refine ⟨fun h ↦ ?_, ?_⟩
-  · obtain ⟨E, hE, rfl⟩ := h.exists_eq_unifOn
-    use E
-  rintro ⟨E, rfl, hE⟩
-  rw [← hE]
-  exact unifOn_isFiniteRank_uniform <| by simpa [hE]
 
 /-- A finitary non-free uniform matroid is one of the obvious ones.
 maybe use `IsFiniteRankUniform` instead-/
@@ -982,9 +851,9 @@ lemma eq_unifOn_of_eRank_le_one [M.Loopless] (hM : M.eRank ≤ 1) : ∃ E, M = u
     fun hI ↦ subsingleton_indep (encard_le_one_iff_subsingleton.1 hI) hIE⟩
 
 lemma isFiniteRankUniform_of_eRank_le_one [M.Loopless] [M.Nonempty] (hM : M.eRank ≤ 1) :
-    ∃ b, M.IsFiniteRankUniform 1 b := by
+    M.IsFiniteRankUniform 1 := by
   obtain ⟨E, rfl⟩ := eq_unifOn_of_eRank_le_one hM
-  refine ⟨E.encard, unifOn_isFiniteRank_uniform ?_⟩
+  refine unifOn_isFiniteRankUniform ?_
   grw [Nat.cast_one, one_le_encard_iff_nonempty]
   exact (unifOn E 1).ground_nonempty
 
@@ -1001,9 +870,9 @@ theorem eq_unifOn_two_iff : M = unifOn E 2 ↔ M.E = E ∧ M.eRank ≤ 2 ∧ M.S
   rw [show E' = E from hE]
 
 lemma isFiniteRankUniform_of_eRank_le_two [M.Simple] (hM : M.eRank ≤ 2) (hnt : M.E.Nontrivial) :
-    ∃ b, M.IsFiniteRankUniform 2 b := by
+    M.IsFiniteRankUniform 2 := by
   obtain ⟨E, rfl⟩ := eq_unifOn_of_eRank_le_two hM
-  exact ⟨E.encard, unifOn_isFiniteRank_uniform <| two_le_encard_iff_nontrivial.2 hnt⟩
+  exact unifOn_isFiniteRankUniform <| two_le_encard_iff_nontrivial.2 hnt
 
 @[simp]
 lemma unifOn_one_dual (E : Set α) : (unifOn E 1)✶ = circuitOn E := by
@@ -1125,10 +994,10 @@ lemma NoUniformMinor.le_minor {a b b' : ℕ} (hM : M.NoUniformMinor a b) (ha : a
   exact ⟨((unif_isoMinor_unif_iff' ha (Nat.le_trans ha hb')).2 ⟨ Nat.le_refl a,
       Nat.sub_le_sub_right hb' a ⟩).some.trans hM.some⟩
 
-lemma NoUniformMinor.lt_of_isoMinor {N : Matroid α} {a b : ℕ} {b' : ℕ∞} (h : M.NoUniformMinor a b)
-    (hNM : N ≤i M) (hN : N.IsFiniteRankUniform a b') : b' < b := by
+lemma NoUniformMinor.lt_of_isoMinor {N : Matroid α} {a b : ℕ} (h : M.NoUniformMinor a b)
+    (hNM : N ≤i M) (hN : N.IsFiniteRankUniform a) : N.E.encard < b := by
   by_contra! hle
-  obtain ⟨E, rfl, rfl⟩ := hN.exists_eq_unifOn
+  obtain ⟨E, rfl, _⟩ := hN.exists_eq_unifOn
   obtain ⟨φ⟩ := unif_isoRestr_unifOn (a := a) hle
   exact h.elim (IsoMinor.trans φ.isoMinor hNM)
 

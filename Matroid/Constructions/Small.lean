@@ -1,6 +1,6 @@
 import Matroid.Extension.Parallel
 import Matroid.ForMathlib.Topology.ENat
-import Matroid.Uniform
+import Matroid.Paving
 
 open Set
 
@@ -146,15 +146,15 @@ lemma encard_eq_three_iff_eq (hM : M.E.encard = 3) : ∃ (a b c : α) (hab : a �
   grind
 
 lemma isFinRankUniform_of_eRank_eq_two [M.Nonempty] [M.Simple] (hM : M.eRank = 2) :
-    M.IsFinRankUniform 2 := by
-  grw [isFinRankUniform_iff_eq_unifOn, Nat.cast_two, ← hM, and_iff_left M.eRank_le_encard_ground,
+    M.IsFiniteRankUniform 2 := by
+  grw [isFiniteRankUniform_iff_eq_unifOn, Nat.cast_two, ← hM, and_iff_left M.eRank_le_encard_ground,
     ext_iff_indep, unifOn_ground_eq, and_iff_right rfl]
   simp +contextual only [unifOn_indep_iff, Nat.cast_ofNat, and_true]
   refine fun I hIE ↦ ⟨fun hI ↦ (hI.encard_le_eRank.trans hM.le), fun hI ↦ ?_⟩
   exact indep_of_encard_le_two hI hIE
 
 lemma isFinRankUniform_or_freeOn_of_eRank_le_two [M.Nonempty] [M.Simple] (hM : M.eRank ≤ 2) :
-    M.IsFinRankUniform 2 ∨ ∃ e, M = freeOn {e} := by
+    M.IsFiniteRankUniform 2 ∨ ∃ e, M = freeOn {e} := by
   obtain h2 | h2 := hM.eq_or_lt
   · exact .inl <| isFinRankUniform_of_eRank_eq_two h2
   exact .inr <| M.eq_freeOn_of_eRank_le_one_of_simple (Order.le_of_lt_add_one h2)
@@ -175,9 +175,82 @@ lemma isFiniteUniform_two_four_of_encard_ground_le_four_simple_simple_dual (hME 
     rwa [← hMbn.add_eq] at hMbn
   simp at hMr
 
+lemma eq_or_eq_or_eq_of_encard_eq_four_loopless_coloopless_not_isUniform
+    (hME : M.E.encard = 4) [M.Loopless] [M.Coloopless] (hU : ¬ M.IsUniform) :
+    ∃ (a b c d : α) (h : [a, b, c, d].Nodup),
+      M = (circuitOn {a, b}).disjointSum (circuitOn {c, d}) (by grind [circuitOn_ground]) ∨
+      M = finiteRankSparsePavingOn {a, b, c, d} {{a, b}} 2
+        (by simp [show a ≠ b by grind]) (by simp) (by simp) (by grind) := by
+  have hfin : M.Finite := ⟨finite_of_encard_eq_ofNat hME⟩
+  have hne : M.Nonempty := ⟨by rw [← encard_pos, hME]; simp⟩
+  obtain hr1 | hr2 := le_or_gt M.eRank 1
+  · exact False.elim <| hU (isFiniteRankUniform_of_eRank_le_one hr1).isUniform
+  obtain hr1' | hr2' := le_or_gt M✶.eRank 1
+  · exact False.elim <| hU <| by simpa using (isFiniteRankUniform_of_eRank_le_one hr1').isUniform
+  have hrr := M.eRank_add_eRank_dual
+  obtain ⟨h2, h2'⟩ : M.eRank = 2 ∧ M✶.eRank = 2 := by enat_to_nat! <;> lia
+  have hsp : M.IsSparsePaving := by
+    grw [isSparsePaving_iff, isPaving_iff_girth_ge, isPaving_iff_girth_ge, h2, h2',
+      two_le_girth_iff, two_le_girth_iff]
+    exact ⟨by assumption, by infer_instance⟩
+  obtain ⟨E, r, T, hcard, hexch, hne, hssu, hr, hE, hM⟩ := hsp.exists_eq_finiteRankSparsePavingOn
+  obtain rfl : r = 2 := by simpa [h2] using hr.symm
+  obtain rfl | ⟨H, hHT⟩ := T.eq_empty_or_nonempty
+  · obtain rfl : M = unifOn E 2 := by simpa [finiteRankSparsePavingOn] using hM
+    simp at hU
+  specialize hcard H hHT
+  rw [Nat.cast_ofNat, encard_eq_two] at hcard
+  obtain ⟨a, b, hab, rfl⟩ := hcard
+  obtain ⟨c, d, hnd, rfl⟩ : ∃ c d, [a, b, c, d].Nodup ∧ E = {a, b, c, d} := sorry
+  obtain hss | hnt := T.subsingleton_or_nontrivial
+  · grind [hss.eq_singleton_of_mem hHT]
+  obtain ⟨H', hH'T, habcd⟩ := hnt.exists_ne {a, b}
+  obtain rfl : H' = {c, d} := by
+    -- obtain
 
 
-  -- have := isFinRankUniform_of_eRank_le_two hMr
+
+
+/-- Every loopless, coloopless matroid on four elements is either `U₂,₄`, a direct sum of
+two parallel pairs, or a single tightening of `U₂,₄`. -/
+lemma eq_or_eq_or_eq_of_encard_eq_four_loopless_coloopless (hME : M.E.encard = 4) [M.Loopless]
+    [M.Coloopless] : M.IsFiniteUniform 1 3 4 ∨ M.IsFiniteUniform 2 2 4 ∨ M.IsFiniteUniform 3 1 4 ∨
+    ∃ (a b c d : α) (h : [a, b, c, d].Nodup),
+      M = (circuitOn {a, b}).disjointSum (circuitOn {c, d}) (by grind [circuitOn_ground]) ∨
+      M = finiteRankSparsePavingOn {a, b, c, d} {{a, b}} 2
+        (by simp [show a ≠ b by grind]) (by simp) (by simp) (by grind) := by
+  have hfin : M.Finite := ⟨finite_of_encard_eq_ofNat hME⟩
+  have hne : M.Nonempty := ⟨by rw [← encard_pos, hME]; simp⟩
+  by_cases hU : M.IsUniform
+  · obtain ⟨a, b, n, hM, ha, hb, hn⟩ := hU.exists_isFiniteUniform_of_finite
+    obtain rfl : n = 4 := by enat_to_nat!; lia
+    obtain rfl | a := a
+    · simpa [ha.symm] using M.eRank_ne_zero
+    obtain rfl | b := b
+    · simpa [hb.symm] using M✶.eRank_ne_zero
+    have := hM.add_eq
+    obtain ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ :
+      a = 0 ∧ b = 2 ∨ a = 1 ∧ b = 1 ∨ a = 2 ∧ b = 0 := by lia
+    all_goals grind
+  right; right; right
+  exact eq_or_eq_or_eq_of_encard_eq_four_loopless_coloopless_not_isUniform hME hU
+
+
+
+
+
+
+
+
+
+
+
+
+
+  -- obtain ⟨E,  hsp.exists_eq_finiteRankSparsePavingOn
+    -- M.IsFiniteUniform 2 2 4 ∨
+
+
 
 
 
@@ -299,27 +372,27 @@ lemma eq_disjointSum_of_rank_le_one (hM : M.eRank ≤ 1) :
     M.loops_disjoint_setOf_isNonloop.sdiff_eq_left]
   rfl
 
-lemma eq_or_eq_of_encard_ground_eq_four (hME : M.E.encard = 4)
-    [M.Loopless] [M.Coloopless] : M.IsFiniteUniform 2 2 4 ∨
-    ∃ (a a' b b' : α) (hnd : [a, a', b, b'].Nodup),
-      M = extendedUnifOn {{a, a'}, {b}, {b'}} ∅ 2 (by
-        simp only [pairwiseDisjoint_insert, Partition.isPartition_singleton_iff, bot_eq_empty,
-          ne_eq, singleton_ne_empty, not_false_eq_true, Partition.IsPartition.pairwiseDisjoint,
-          mem_singleton_iff, forall_eq, singleton_eq_singleton_iff,
-          mem_insert_iff, forall_eq_or_imp, true_and]
-        grind ) := by
+-- lemma eq_or_eq_of_encard_ground_eq_four (hME : M.E.encard = 4)
+--     [M.Loopless] [M.Coloopless] : M.IsFiniteUniform 2 2 4 ∨
+--     ∃ (a a' b b' : α) (hnd : [a, a', b, b'].Nodup),
+--       M = extendedUnifOn {{a, a'}, {b}, {b'}} ∅ 2 (by
+--         simp only [pairwiseDisjoint_insert, Partition.isPartition_singleton_iff, bot_eq_empty,
+--           ne_eq, singleton_ne_empty, not_false_eq_true, Partition.IsPartition.pairwiseDisjoint,
+--           mem_singleton_iff, forall_eq, singleton_eq_singleton_iff,
+--           mem_insert_iff, forall_eq_or_imp, true_and]
+--         grind ) := by
 
 
-/-- Every two-element matroid is either uniform, or the sum of a loop and a coloop. -/
-lemma bar (hM : M.E.encard = 2) : ∃ (e f : α) (_hef : e ≠ f),
-    M = loopyOn {e, f} ∨ M = freeOn {e, f} ∨ M = circuitOn {e, f}
-    ∨ M = extendedUnifOn {{e}} {f} 1 (by simp) := by
-  obtain ⟨e, f, hef, rfl | rfl | rfl | rfl⟩ := eq_of_encard_ground_eq_two hM
-  · grind
-  · grind
-  · grind
-  use f, e, hef.symm
-  right; right; right
-  rw! [extendedUnifOn_eq_disjointSum _ _ _ (by grind), extendedUnifOn_singleton_empty,
-    unifOn_eq_of_le (by simp), disjointSum_comm]
-  rfl
+-- /-- Every two-element matroid is either uniform, or the sum of a loop and a coloop. -/
+-- lemma bar (hM : M.E.encard = 2) : ∃ (e f : α) (_hef : e ≠ f),
+--     M = loopyOn {e, f} ∨ M = freeOn {e, f} ∨ M = circuitOn {e, f}
+--     ∨ M = extendedUnifOn {{e}} {f} 1 (by simp) := by
+--   obtain ⟨e, f, hef, rfl | rfl | rfl | rfl⟩ := eq_of_encard_ground_eq_two hM
+--   · grind
+--   · grind
+--   · grind
+--   use f, e, hef.symm
+--   right; right; right
+--   rw! [extendedUnifOn_eq_disjointSum _ _ _ (by grind), extendedUnifOn_singleton_empty,
+--     unifOn_eq_of_le (by simp), disjointSum_comm]
+--   rfl

@@ -167,9 +167,15 @@ lemma IsSummablePair.biclosure_biclosure (h : IsSummablePair M N T) (X : Set α)
 -- (closure_exchange : ∀ ⦃X e f⦄, X ⊆ E → e ∈ E → f ∈ E →
 --       f ∈ closure (insert e X) \ closure X → e ∈ closure (insert f X) \ X)
 
-lemma IsSummablePair.biclosure_biclosure_insert (h : IsSummablePair M N T) (hX : X ⊆ M.E ∪ N.E)
-    (he : e ∈ M.E ∪ N.E) :
+lemma IsSummablePair.biclosure_biclosure_insert (h : IsSummablePair M N T) (X : Set α) (e : α) :
     M.biclosure N (insert e (M.biclosure N X)) = M.biclosure N (insert e X) := by
+  by_cases! he : e ∉ M.E ∪ N.E
+  · rw [← biclosure_inter_inter_ground, insert_inter_of_notMem he, biclosure_inter_inter_ground,
+      h.biclosure_biclosure, eq_comm, ← biclosure_inter_union_ground, insert_inter_of_notMem he,
+      biclosure_inter_union_ground]
+  wlog hX : X ⊆ M.E ∪ N.E generalizing X with aux
+  · grw [← biclosure_inter_union_ground _ _ X, aux _ inter_subset_right, ← insert_inter_of_mem he,
+      biclosure_inter_union_ground]
   refine subset_antisymm ?_ <| biclosure_subset_biclosure _ _ <| insert_subset_insert <|
     subset_biclosure _ _ hX
   nth_rw 3 [← h.biclosure_biclosure]
@@ -181,34 +187,55 @@ lemma IsSummablePair.biclosure_biclosure_insert (h : IsSummablePair M N T) (hX :
 -- FALSE
 lemma IsSummablePair.closure_inter_biclosure_left (h : IsSummablePair M N T) (hX : X ⊆ M.E ∪ N.E)
     (he : e ∈ M.E) : M.closure (insert e (M.biclosure N X)) = biclosure M N (insert e X) ∩ M.E := by
+  sorry
+  -- refine subset_antisymm ?_ ?_
+  -- · grw [← h.biclosure_biclosure_insert hX (.inl he), biclosure_inter_left_eq, ← subset_union_left]
+  -- rw [← M.closure_inter_ground, insert_inter_of_mem he, biclosure_inter_left_eq,
+  --   biclosure_inter_left_eq, closure_insert_closure_eq_closure_insert,
+  --   insert_union (t := M.closure _), ← union_insert,
+  --   insert_eq_of_mem (M.mem_closure_of_mem' (mem_insert ..) he)]
+  -- obtain heq | hssu :=
+  --   (inter_subset_inter_left N.E (M.closure_subset_closure (subset_insert e X))).eq_or_ssubset
+  -- · rw [← closure_union_congr_right (N.closure_inter_ground ..),
+  --     ← heq, closure_union_congr_right (N.closure_inter_ground ..), insert_union]
+  -- obtain ⟨f, ⟨hfeX, hfN⟩, hfX⟩ := exists_of_ssubset hssu
+  -- rw [mem_inter_iff, and_iff_left hfN] at hfX
+
+  -- have aux : Disjoint X M.E := sorry
+  -- rw [← closure_inter_ground, union_inter_distrib_right, ← M.closure_inter_ground (insert e X),
+  --   ← M.closure_inter_ground X, insert_inter_of_mem he, aux.inter_eq]
+  -- simp
+  -- have hss2 : M.closure (N.closure (insert f (X ∪ M.closure X))) ⊆
+  --     M.closure (insert f (N.closure (X ∪ M.closure X))) := by
+  --   rw [← M.closure_inter_ground]
+  --   refine closure_subset_closure_of_subset_closure ?_
+  --   rw [← N.closure_insert_closure_eq_closure_insert]
+  --   sorry
+  -- sorry
+
+-- FALSE - take `X = ∅`, and `e` to be a point of `M.E \ N.E` parallel to a point of `N`.
+lemma IsSummablePair.closure_inter_biclosure_right (h : IsSummablePair M N T) (hX : X ⊆ M.E ∪ N.E)
+    (he : e ∈ M.E ∪ N.E) :
+
+    N.closure (insert e (M.biclosure N X)) = biclosure M N (insert e X) ∩ N.E := by
   refine subset_antisymm ?_ ?_
-  · grw [← h.biclosure_biclosure_insert hX (.inl he), biclosure_inter_left_eq, ← subset_union_left]
-  rw [← M.closure_inter_ground, insert_inter_of_mem he, biclosure_inter_left_eq,
-    biclosure_inter_left_eq, closure_insert_closure_eq_closure_insert,
-    insert_union (t := M.closure _), ← union_insert,
-    insert_eq_of_mem (M.mem_closure_of_mem' (mem_insert ..) he)]
-  obtain heq | hssu :=
-    (inter_subset_inter_left N.E (M.closure_subset_closure (subset_insert e X))).eq_or_ssubset
-  · rw [← closure_union_congr_right (N.closure_inter_ground ..),
-      ← heq, closure_union_congr_right (N.closure_inter_ground ..), insert_union]
-  obtain ⟨f, ⟨hfeX, hfN⟩, hfX⟩ := exists_of_ssubset hssu
-  rw [mem_inter_iff, and_iff_left hfN] at hfX
-  have hss : N.closure (M.closure (insert e X)) ⊆ N.closure (insert f (M.closure X)) := by
-    grw [← closure_insert_congr ⟨hfeX, hfX⟩, ← N.closure_inter_ground,
-      closure_subset_closure_iff_subset_closure, h.closure_inter_right, ← union_singleton,
-      h.closure_union_inter_subset_closure (by simpa), ← union_singleton, inter_subset_left]
-  have aux : Disjoint X M.E := sorry
-  rw [← closure_inter_ground, union_inter_distrib_right, ← M.closure_inter_ground (insert e X),
-    ← M.closure_inter_ground X, insert_inter_of_mem he, aux.inter_eq]
-  simp
-  have hss2 : M.closure (N.closure (insert f (X ∪ M.closure X))) ⊆
-      M.closure (insert f (N.closure (X ∪ M.closure X))) := by
-    rw [← M.closure_inter_ground]
-    refine closure_subset_closure_of_subset_closure ?_
-    rw [← N.closure_insert_closure_eq_closure_insert]
-    sorry
-  grw [← N.closure_union_closure_right_eq, hss, N.closure_union_closure_right_eq, union_insert,
-    ← M.closure_union_closure_right_eq, hss2, M.closure_union_closure_right_eq]
+  · grw [← h.biclosure_biclosure_insert, h.biclosure_inter_right_eq, ← subset_union_left]
+  rw [h.biclosure_inter_right_eq, ← N.closure_inter_ground,
+    closure_subset_closure_iff_subset_closure, union_inter_distrib_right, union_subset_iff]
+  refine ⟨?_, ?_⟩
+  · refine subset_closure_of_subset' _ ?_ inter_subset_right
+    by_cases heN : e ∈ N.E
+    · grw [insert_inter_of_mem heN, inter_subset_left, ← subset_biclosure M N hX]
+    grw [insert_inter_of_notMem heN, ← subset_insert, inter_subset_left, ← subset_biclosure _ _ hX]
+  by_cases! heM : e ∉ M.E
+  · grw [← closure_inter_ground, insert_inter_of_notMem heM, closure_inter_ground,
+      ← subset_insert, inter_ground_subset_closure, biclosure, ← subset_union_left,
+        ← subset_union_left]
+  grw [biclosure, ← subset_union_left, inter_ground_subset_closure, ← subset_union_left]
+  sorry
+
+  -- grw [← N.closure_union_closure_right_eq, hss, N.closure_union_closure_right_eq, union_insert,
+  --   ← M.closure_union_closure_right_eq, hss2, M.closure_union_closure_right_eq]
     -- rw [h.clo]
 
 
@@ -221,83 +248,109 @@ lemma IsSummablePair.closure_inter_biclosure_left (h : IsSummablePair M N T) (hX
 lemma IsSummablePair.closure_exchange (h : IsSummablePair M N T) (hX : X ⊆ M.E ∪ N.E)
     (he : e ∈ M.E ∪ N.E) (hf : f ∈ M.E ∪ N.E) (hfX : f ∉ M.biclosure N X)
     (hfeX : f ∈ M.biclosure N (insert e X)) : e ∈ M.biclosure N (insert f X) := by
-  rw [← h.biclosure_biclosure_insert hX hf]
+  -- have hss : N.closure (M.closure (insert e X)) ⊆ N.closure (insert f (M.closure X)) := by
+  --   grw [← closure_insert_congr ⟨hfeX, hfX⟩, ← N.closure_inter_ground,
+  --     closure_subset_closure_iff_subset_closure, h.closure_inter_right, ← union_singleton,
+  --     h.closure_union_inter_subset_closure (by simpa), ← union_singleton, inter_subset_left]
+  -- rw [← h.biclosure_biclosure_insert]
   obtain hfE | hfE := hf
-  · have h1 := mem_inter hfeX hfE
+  ·
+    have h1 := mem_inter hfeX hfE
     rw [biclosure_inter_left_eq] at h1
-    have hins : f ∈ M.closure (insert e (M.biclosure N X)) := by
-      _
+    by_cases! heM : e ∉ M.E
+    ·
+      grw [biclosure, ← subset_union_right]
 
-  -- suffices hcl' : f ∈ M.closure (insert e (M.biclosure N X))
-  -- ·
-  --   refine mem_of_mem_of_subset (M.closure_exchange ⟨hcl', by grind [closure_biclosure_left]⟩).1 ?_
+
+    -- have := h.cl
+
+
+    -- have hss1 := inter_subset_inter_left N.E <| M.closure_subset_closure (subset_insert e X)
+    -- by_cases! heM : e ∉ M.E
+    -- · rw [← M.closure_union_congr_left (M.closure_inter_ground ..),
+    --     ← M.closure_inter_ground (insert ..), insert_inter_of_notMem heM, M.closure_inter_ground,
+    --     M.closure_union_congr_left (M.closure_inter_ground ..)] at h1
+    --   nth_grw 1 [biclosure, ← subset_union_right, ← subset_union_left]
+    --   have hss : N.closure (M.closure (insert e X)) ⊆ M.closure (insert e (N.closure X)) := by
+    --     sorry
+    --   grw [← N.closure_union_closure_left_eq] at h1
+    -- obtain heq | hssu := hss1.eq_or_ssubset
+    -- · rw [← N.closure_union_congr_right (N.closure_inter_ground ..), ← heq,
+    --     N.closure_union_congr_right (N.closure_inter_ground ..)] at h1
+  --   rw [biclosure_inter_left_eq] at h1
+  --   have hins : f ∈ M.closure (insert e (M.biclosure N X)) := by
+  --     _
+
+  -- -- suffices hcl' : f ∈ M.closure (insert e (M.biclosure N X))
+  -- -- ·
+  -- --   refine mem_of_mem_of_subset (M.closure_exchange ⟨hcl', by grind [closure_biclosure_left]⟩).1 ?_
+  -- --     grw [← inter_subset_left (s := M.biclosure N (insert f X)) (t := M.E),
+  -- --       ← closure_inter_ground, insert_inter_of_mem hfE, biclosure_inter_left_eq,
+  -- --       closure_insert_closure_eq_closure_insert, biclosure_inter_left_eq]
+  -- --     exact M.closure_subset_closure <| insert_subset (by grind) <| by grw [← subset_insert]
+  -- by_cases! hfE : f ∉ N.E
+  -- · have hi := mem_inter hfeX (show f ∈ M.E by grind)
+  --   rw [biclosure_inter_left_eq] at hi
+  --   by_cases! heE : e ∉ N.E
+  --   · rw [← N.closure_inter_ground, union_inter_distrib_right, insert_inter_of_notMem heE,
+  --       ← union_inter_distrib_right, N.closure_inter_ground] at hi
+  --     have hins : f ∈ M.closure (insert e (M.biclosure N X)) := by
+  --       refine mem_of_mem_of_subset hi ?_
+  --       grw [biclosure, ← subset_union_left (s := M.closure _),
+  --         closure_insert_closure_eq_closure_insert]
+  --     refine mem_of_mem_of_subset (M.closure_exchange ⟨hins, by grind [closure_biclosure_left]⟩).1 ?_
+  --     grw [← inter_subset_left (s := M.biclosure N (insert f X)) (t := M.E),
+  --       ← closure_inter_ground, insert_inter_of_mem (by grind), biclosure_inter_left_eq,
+  --       closure_insert_closure_eq_closure_insert, biclosure_inter_left_eq]
+  --     exact M.closure_subset_closure <| insert_subset (by grind) <| by grw [← subset_insert]
+  --   rw [← h.biclosure_inter_right_eq] at hi
+  --     -- have := (M.closure_exchange ⟨hins, ?_⟩).1
+  --     -- rw [← closure_inter_ground, insert_inter_of_mem (by grind), biclosure_inter_left_eq] at this ⊢
+  --     -- refine mem_of_mem_of_subset ?_ subset_union_left
+
+
+
+
+
+  --   -- have hcl := (M.biclosure_inter_left_eq N (insert e X)).subset ⟨hfeX, hfE⟩
+  --   suffices hcl' : f ∈ M.closure (insert e (M.biclosure N X))
+  --   · refine mem_of_mem_of_subset (M.closure_exchange ⟨hcl', by grind [closure_biclosure_left]⟩).1 ?_
   --     grw [← inter_subset_left (s := M.biclosure N (insert f X)) (t := M.E),
   --       ← closure_inter_ground, insert_inter_of_mem hfE, biclosure_inter_left_eq,
   --       closure_insert_closure_eq_closure_insert, biclosure_inter_left_eq]
   --     exact M.closure_subset_closure <| insert_subset (by grind) <| by grw [← subset_insert]
-  by_cases! hfE : f ∉ N.E
-  · have hi := mem_inter hfeX (show f ∈ M.E by grind)
-    rw [biclosure_inter_left_eq] at hi
-    by_cases! heE : e ∉ N.E
-    · rw [← N.closure_inter_ground, union_inter_distrib_right, insert_inter_of_notMem heE,
-        ← union_inter_distrib_right, N.closure_inter_ground] at hi
-      have hins : f ∈ M.closure (insert e (M.biclosure N X)) := by
-        refine mem_of_mem_of_subset hi ?_
-        grw [biclosure, ← subset_union_left (s := M.closure _),
-          closure_insert_closure_eq_closure_insert]
-      refine mem_of_mem_of_subset (M.closure_exchange ⟨hins, by grind [closure_biclosure_left]⟩).1 ?_
-      grw [← inter_subset_left (s := M.biclosure N (insert f X)) (t := M.E),
-        ← closure_inter_ground, insert_inter_of_mem (by grind), biclosure_inter_left_eq,
-        closure_insert_closure_eq_closure_insert, biclosure_inter_left_eq]
-      exact M.closure_subset_closure <| insert_subset (by grind) <| by grw [← subset_insert]
-    rw [← h.biclosure_inter_right_eq] at hi
-      -- have := (M.closure_exchange ⟨hins, ?_⟩).1
-      -- rw [← closure_inter_ground, insert_inter_of_mem (by grind), biclosure_inter_left_eq] at this ⊢
-      -- refine mem_of_mem_of_subset ?_ subset_union_left
+  --   -- refine mem_of_mem_of_subset (mem_inter hfeX hfE) ?_
+  --   -- rw [biclosure_inter_left_eq]
+  --   by_cases! heE : e ∉ M.E
+  --   · have hcon := mem_inter hfeX hfE
+  --     rw [biclosure_inter_left_eq, ← M.closure_inter_ground, union_inter_distrib_right,
+  --       ← M.closure_inter_ground (insert ..), insert_inter_of_notMem heE,
+  --       M.closure_inter_ground, ← union_inter_distrib_right, M.closure_inter_ground] at hcon
+  --     rw [← closure_inter_ground, insert_inter_of_notMem heE, biclosure_inter_left_eq,
+  --       closure_closure]
 
+  --   sorry
 
+  --   rw [← closure_inter_ground, union_inter_distrib_right, ← M.closure_inter_ground (insert e X),
+  --     insert_inter_of_notMem heE, closure_inter_ground, ← M.closure_inter_ground (insert e _),
+  --     insert_inter_of_notMem heE]
+  --   by_cases heE : e ∈ M.E
+  --   · refine mem_of_mem_of_subset (mem_inter hfeX hfE) ?_
+  --     rw [biclosure_inter_left_eq, ← M.closure_inter_ground (insert e (M.biclosure N _)),
+  --       insert_inter_of_mem heE, biclosure_inter_left_eq, closure_insert_closure_eq_closure_insert,
+  --       insert_union (t := M.closure (insert e X)), ← union_insert,
+  --       insert_eq_of_mem (M.mem_closure_of_mem' (mem_insert ..) heE),]
+  --     sorry
+  --   rw [← closure_inter_ground, insert_inter_of_notMem heE]
+  --   refine mem_of_mem_of_subset (mem_inter hfeX hfE) ?_
 
-
-
-    -- have hcl := (M.biclosure_inter_left_eq N (insert e X)).subset ⟨hfeX, hfE⟩
-    suffices hcl' : f ∈ M.closure (insert e (M.biclosure N X))
-    · refine mem_of_mem_of_subset (M.closure_exchange ⟨hcl', by grind [closure_biclosure_left]⟩).1 ?_
-      grw [← inter_subset_left (s := M.biclosure N (insert f X)) (t := M.E),
-        ← closure_inter_ground, insert_inter_of_mem hfE, biclosure_inter_left_eq,
-        closure_insert_closure_eq_closure_insert, biclosure_inter_left_eq]
-      exact M.closure_subset_closure <| insert_subset (by grind) <| by grw [← subset_insert]
-    -- refine mem_of_mem_of_subset (mem_inter hfeX hfE) ?_
-    -- rw [biclosure_inter_left_eq]
-    by_cases! heE : e ∉ M.E
-    · have hcon := mem_inter hfeX hfE
-      rw [biclosure_inter_left_eq, ← M.closure_inter_ground, union_inter_distrib_right,
-        ← M.closure_inter_ground (insert ..), insert_inter_of_notMem heE,
-        M.closure_inter_ground, ← union_inter_distrib_right, M.closure_inter_ground] at hcon
-      rw [← closure_inter_ground, insert_inter_of_notMem heE, biclosure_inter_left_eq,
-        closure_closure]
-
-    sorry
-
-    rw [← closure_inter_ground, union_inter_distrib_right, ← M.closure_inter_ground (insert e X),
-      insert_inter_of_notMem heE, closure_inter_ground, ← M.closure_inter_ground (insert e _),
-      insert_inter_of_notMem heE]
-    by_cases heE : e ∈ M.E
-    · refine mem_of_mem_of_subset (mem_inter hfeX hfE) ?_
-      rw [biclosure_inter_left_eq, ← M.closure_inter_ground (insert e (M.biclosure N _)),
-        insert_inter_of_mem heE, biclosure_inter_left_eq, closure_insert_closure_eq_closure_insert,
-        insert_union (t := M.closure (insert e X)), ← union_insert,
-        insert_eq_of_mem (M.mem_closure_of_mem' (mem_insert ..) heE),]
-      sorry
-    rw [← closure_inter_ground, insert_inter_of_notMem heE]
-    refine mem_of_mem_of_subset (mem_inter hfeX hfE) ?_
-
-    obtain heE | heE := he
-    · refine mem_of_mem_of_subset (mem_inter hfeX hfE) ?_
-      rw [biclosure_inter_left_eq, ← M.closure_inter_ground (insert e (M.biclosure N _)),
-        insert_inter_of_mem heE, biclosure_inter_left_eq, closure_insert_closure_eq_closure_insert,
-        insert_union (t := M.closure (insert e X)), ← union_insert,
-        insert_eq_of_mem (M.mem_closure_of_mem' (mem_insert ..) heE)]
-  sorry
+  --   obtain heE | heE := he
+  --   · refine mem_of_mem_of_subset (mem_inter hfeX hfE) ?_
+  --     rw [biclosure_inter_left_eq, ← M.closure_inter_ground (insert e (M.biclosure N _)),
+  --       insert_inter_of_mem heE, biclosure_inter_left_eq, closure_insert_closure_eq_closure_insert,
+  --       insert_union (t := M.closure (insert e X)), ← union_insert,
+  --       insert_eq_of_mem (M.mem_closure_of_mem' (mem_insert ..) heE)]
+  -- sorry
 
 
 

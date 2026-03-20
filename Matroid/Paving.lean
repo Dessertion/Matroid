@@ -65,7 +65,7 @@ lemma IsPaving.isCircuit_insert_diff_singleton_of_isBase_of_not_isBase (hM : M.I
   hM.isCircuit_of_isBase_of_finDiff_of_not_isBase hB
     (isExchange_diff_insert hfB heB.2).finDiff hB' <| by grind
 
-lemma paving_iff_forall_isCircuit' : M.IsPaving ↔ ∀ C, M.IsCircuit C → (M ／ C).eRank ≤ 1 := by
+lemma isPaving_iff_forall_isCircuit : M.IsPaving ↔ ∀ C, M.IsCircuit C → (M ／ C).eRank ≤ 1 := by
   refine ⟨fun h C hC ↦ h.eRank_contract_le_one_of_dep hC.dep, fun h ↦ ?_⟩
   obtain ⟨E, rfl⟩ | hpos := M.exists_eq_loopyOn_or_rankPos
   · simp
@@ -231,6 +231,15 @@ lemma IsPaving.exists_isCircuit_of_indep {I : Set α} [M✶.RankPos] (hM : M.IsP
   obtain ⟨C, hC, -, h⟩ := hM.exists_isCircuit_of_isBase hB
   exact ⟨C, hC, h.anti <| diff_subset_diff_left hIB⟩
 
+lemma isPaving_iff_girth_ge [M.Finitary] : M.IsPaving ↔ M.eRank ≤ M.girth := by
+  rw [isPaving_iff_forall_isCircuit, le_girth_iff]
+  refine ⟨fun h C hC ↦ ?_, fun h C hC ↦ ?_⟩
+  · grw [← M.eRank_contract_add_eRk C, h C hC, add_comm, hC.eRk_add_one_eq]
+  specialize h C hC
+  rwa [← M.eRank_contract_add_eRk C, ← hC.eRk_add_one_eq, add_comm, ENat.add_le_add_iff_left] at h
+  rw [Ne, ← ENat.add_one_inj, hC.eRk_add_one_eq]
+  simpa using hC.finite
+
 /-- A `SparsePaving` matroid is a paving matroid with paving dual,
 or equivalently one where every nonspanning dependent set is a circuit-hyperplane. -/
 @[mk_iff]
@@ -327,10 +336,21 @@ lemma IsSparsePaving.relax_all_isUniform (h : M.IsSparsePaving) :
   simp only [isUniform_iff, relax_E, relax_Indep, mem_setOf_eq, relax_spanning_iff]
   grind [h.indep_or_spanning_or_isCircuitHyperplane]
 
+
+lemma IsSparsePaving.exists_eq_relax_unifOn [M.RankFinite] (hM : M.IsSparsePaving) :
+    ∃ (E : Set α) (r : ℕ), M.eRank = r ∧ E = M.E ∧ ∃ (T : Set (Set α))
+    (h : (unifOn E r).IsLawfulTightening T), M = (unifOn E r).tighten T h := by
+  obtain ⟨E, k, hkE, heq, hr⟩ := hM.relax_all_isUniform.exists_eq_unifOn
+  have hh := (IsLawfulRelaxation.all M).isLawfulTightening_relax
+  rw [heq] at hh
+  simp only [relax_eRank_eq] at hr
+  refine ⟨E, k, hr, ?_, _, hh, by simp_rw [← heq, IsLawfulRelaxation.tighten_relax]⟩
+  simpa using congr_arg Matroid.E heq.symm
+
 /-- A rank-`r` sparse paving matroid, specified by its set of circuit-hyperplanes.
 `H` should be any set of `r`-sets, no two differing by a single exchange. -/
-def finiteRankSparsePavingOn (E : Set α) {H : Set (Set α)} (r : ℕ)
-    (card_eq : ∀ C ∈ H, C.encard = r) (exchange : ∀ C ∈ H, ∀ C' ∈ H, ¬ C.IsExchange C')
+def finiteRankSparsePavingOn (E : Set α) (H : Set (Set α)) (r : ℕ)
+    (card_eq : ∀ C ∈ H, C.encard = r) (exchange : H.Pairwise (fun C C' ↦ ¬ IsExchange C C'))
     (nonempty : ∀ C ∈ H, C.Nonempty) (ssubset_ground : ∀ C ∈ H, C ⊂ E) : Matroid α :=
   (unifOn E r).tighten H ⟨
     fun B hBH ↦ (unifOn_isUniform E r).isFreeBase <| by
@@ -339,12 +359,31 @@ def finiteRankSparsePavingOn (E : Set α) {H : Set (Set α)} (r : ℕ)
     by grind [Set.Pairwise], fun hEH ↦ (ssubset_ground E hEH).ne rfl, by grind [Nonempty.ne_empty]⟩
 
 lemma IsSparsePaving.exists_eq_finiteRankSparsePavingOn [M.RankFinite] (hM : M.IsSparsePaving) :
-    ∃ (E : Set α) (r : ℕ), r ≤ E.encard ∧ ∃ (T : Set (Set α))
-    (h : (unifOn E r).IsLawfulTightening T), M = (unifOn E r).tighten T h := by
-  obtain ⟨E, k, hkE, heq, hr⟩ := hM.relax_all_isUniform.exists_eq_unifOn
-  have hh := (IsLawfulRelaxation.all M).isLawfulTightening_relax
-  rw [heq] at hh
-  refine ⟨E, k, hkE, _, hh, ?_⟩
-  simp_rw [← heq, IsLawfulRelaxation.tighten_relax]
+    ∃ (E : Set α) (r : ℕ) (T : Set (Set α)) (card_eq : _) (exchange : _) (nonempty : _)
+        (ssubset_ground : _), M.eRank = r ∧ E = M.E ∧
+        M = finiteRankSparsePavingOn E T r card_eq exchange nonempty ssubset_ground := by
+  have h := (IsLawfulRelaxation.all M).isLawfulTightening_relax
+  obtain ⟨E, k, hkE, h_eq, hk⟩ := hM.relax_all_isUniform.exists_eq_unifOn
+  obtain rfl : k = M.rank := by simpa [← ENat.coe_inj] using hk.symm
+  refine ⟨M.E, M.rank, {H | M.IsCircuitHyperplane H},
+    fun C hC ↦ by simp [h.encard_eq_eRank_of_mem hC], h.pairwise_not_isExchange,
+      fun _ ↦ h.nonempty, fun _ ↦ h.ssubset_ground, by simp, by simp, ?_⟩
+  rw [finiteRankSparsePavingOn]
+  obtain rfl : E = M.E := by simpa using congr_arg Matroid.E h_eq.symm
+  simp [← h_eq]
 
-  -- have := h.isPaving.isB
+
+
+
+  -- refine ⟨M.E, M.rank, {H | M.IsCircuitHyperplane H}, ?_⟩
+  -- simp [cast_rank_eq, finiteRankSparsePavingOn, true_and, mem_setOf_eq]
+
+
+
+  -- refine ⟨M.E, M.rank, {H | M.IsCircuitHyperplane H}, ?_, ?_, ?_, ?_, by simp, by simp, ?_⟩
+
+
+  -- obtain ⟨E, k, hkE, heq, hr⟩ := hM.relax_all_isUniform.exists_eq_unifOn
+  -- have hh := (IsLawfulRelaxation.all M).isLawfulTightening_relax
+
+    --  M.eRank = r ∧ E = M.E ∧ ∃ (T : Set (Set α))

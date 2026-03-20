@@ -372,6 +372,18 @@ lemma IsLawfulTightening.isCircuitHyperplane_tighten (hT : M.IsLawfulTightening 
     diff_subset
   grind
 
+lemma IsLawfulTightening.encard_eq_eRank_of_mem (h : M.IsLawfulTightening T) (hX : X ∈ T) :
+    X.encard = M.eRank :=
+  (h.isFreeBase_of_mem hX).isBase.encard_eq_eRank
+
+@[simp]
+lemma IsLawfulTightening_empty (M : Matroid α) : M.IsLawfulTightening ∅ := by
+  constructor <;> simp
+
+@[simp]
+lemma tighten_empty (M : Matroid α) : M.tighten ∅ (by simp) = M :=
+  ext_indep rfl <| by simp
+
 /-- Tighten a single free base. -/
 @[simps!]
 def tightenSingle (hB : M.IsFreeBase B) (hBne : B.Nonempty) (hBE : B ≠ M.E) : Matroid α :=
@@ -405,6 +417,5 @@ lemma IsLawfulTightening.relax_tighten (hT : M.IsLawfulTightening T) :
   refine ext_isBase rfl ?_
   have : ∀ B ∈ T, M.IsBase B := fun B hB ↦ (hT.isFreeBase_of_mem hB).isBase
   grind [relax_E, tighten_E, relax_IsBase, tighten_IsBase]
-
 
 end Tighten
