@@ -66,10 +66,10 @@ instance : Std.Symm G.Adj where
 
 -- TODO: These attributes should ideally be incorporated directly into the declarations
 -- of `Adj.symm` and `IsLink.symm` in Mathlib when upstreaming.
-attribute [grind →] IsLink.edge_mem IsLink.left_mem IsLink.right_mem IsLink.inc_left
-  IsLink.inc_right Inc.edge_mem Inc.vertex_mem IsNonloopAt.edge_mem IsNonloopAt.vertex_mem
+attribute [grind →] IsLink.edge_mem IsLink.left_mem IsLink.right_mem
+  Inc.edge_mem Inc.vertex_mem IsNonloopAt.edge_mem IsNonloopAt.vertex_mem
   Adj.left_mem Adj.right_mem
-attribute [grind .] Inc.eq_or_eq_of_isLink exists_isLink_of_mem_edgeSet
+attribute [grind .] Inc.eq_or_eq_of_isLink
 attribute [symm] Adj.symm IsLink.symm
 
 
@@ -84,7 +84,7 @@ lemma isLink_eq_isLink_iff_exists_isLink_of_mem_edgeSet (heG : e ∈ E(G)) :
     rw [hG.isLink_iff_sym2_eq, hH.isLink_iff_sym2_eq]
 
 /-- The set of ends of an edge `e`. -/
-@[grind]
+-- @[grind]
 def endSet (G : Graph α β) (e : β) : Set α := {x | G.Inc e x}
 
 notation "V(" G ", " e ")" => Graph.endSet G e
@@ -92,10 +92,9 @@ notation "V(" G ", " e ")" => Graph.endSet G e
 @[simp, grind =]
 lemma mem_endSet_iff : x ∈ V(G, e) ↔ G.Inc e x := Iff.rfl
 
-@[grind →]
 lemma IsLink.endSet_eq (h : G.IsLink e x y) : V(G, e) = {x, y} := by
   ext a
-  grind
+  grind [IsLink.inc_left, IsLink.inc_right]
 
 @[grind →]
 lemma IsLoopAt.endSet_eq (h : G.IsLoopAt e x) : V(G, e) = {x} := by

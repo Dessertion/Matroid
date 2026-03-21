@@ -266,7 +266,7 @@ end repFun
 
 /-- Contracts the edge given in the `IsLink` predicate by removing the second vertex and adding its
   edges to the first vertex. -/
-@[simps (attr := grind =)]
+@[simps]
 def contract (G : Graph α β) (e : β) (he : G.IsLink e x y) : Graph α β where
   vertexSet := insert x (V(G) \ {y})
   edgeSet := E(G) \ {e}
@@ -290,6 +290,8 @@ def contract (G : Graph α β) (e : β) (he : G.IsLink e x y) : Graph α β wher
     simp_rw [← contract_isLink_isLink_lemma, ← contract_vertexSet_isLink_lemma he, he.repFun_toFun]
     convert (((fun v ↦ if v = y then x else v) ''ᴳ G) ＼ {e}).left_mem_of_isLink (e := e') (x := x')
       (y := y')
+
+attribute [grind =] contract_vertexSet contract_edgeSet
 
 notation:70 G " /("e ", " he")" => Graph.IsLink.contract G e he
 

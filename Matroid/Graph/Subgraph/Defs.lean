@@ -172,7 +172,7 @@ lemma induce_edgeSet_eq_diff (G : Graph α β) (X : Set α) :
   refine ⟨fun ⟨x, y, he, hx, hy⟩ ↦ ⟨he.edge_mem, fun z hz hzX hez ↦ ?_⟩, fun ⟨he, h⟩ ↦ ?_⟩
   · grind
   obtain ⟨x, y, he⟩ := exists_isLink_of_mem_edgeSet he
-  grind
+  grind [IsLink.inc_left, IsLink.inc_right]
 
 @[simp, grind =]
 lemma induce_empty (G : Graph α β) : G[∅] = ⊥ := by
