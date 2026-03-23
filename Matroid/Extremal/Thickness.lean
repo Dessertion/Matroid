@@ -18,6 +18,10 @@ lemma IsThick_iff (M : Matroid α) (d : ℕ∞) :
 
 lemma IsThick_iff' (M : Matroid α) (d : ℕ∞) :
     M.IsThick d ↔ ∀ T, M.IsCover Matroid.Nonspanning T → d ≤ T.encard := by
+  refine ⟨?_, ?_ ⟩
+  · intro h T hT
+
+    sorry
   sorry
 
 

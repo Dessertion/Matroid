@@ -650,7 +650,7 @@ lemma set_to_binom_number {a b : ℕ} (X : Set α) (hX : X.encard = b) :
 
 lemma base_isCover {a : ℕ} (hr : M.eRank ≤ a + 1) (ha : 1 ≤ a) (hXfin : X.Finite)
     --(h : Maximal (fun Y ↦ Y ⊆ M.E ∧ (M ↾ Y).IsFiniteRankUniform (a + 1) Y.encard) X) :
-    (h : MaximalFor (fun x ↦ x ∈ {X | X ⊆ M.E ∧ (M ↾ X).IsFinRankUniform (a + 1) }) encard X) :
+    (h : MaximalFor (fun x ↦ x ∈ {X | X ⊆ M.E ∧ (M ↾ X).IsFiniteRankUniform (a + 1) }) encard X) :
     M.IsRankCover a (M.closure '' {K | K ⊆ X ∧ K.encard = a}) := by
   refine ⟨?_, ?_⟩
   · refine subset_antisymm (sUnion_subset fun K ↦ ?_) fun e he ↦ ?_
@@ -679,7 +679,7 @@ lemma base_isCover {a : ℕ} (hr : M.eRank ≤ a + 1) (ha : 1 ≤ a) (hXfin : X.
     apply hwin
     suffices aux : (M ↾ insert e X) = unifOn (insert e X) (a + 1) by
       rw [aux]
-      apply unifOn_isFinRankUniform
+      apply unifOn_isFiniteRankUniform
       grw [h.prop.2.le , ← subset_insert]
       exact encard_le_encard fun ⦃a⦄ a_1 ↦ a_1
     refine ext_indep rfl fun I (hI : I ⊆ insert e X) ↦ ?_
@@ -709,7 +709,7 @@ lemma baseCase {a b : ℕ} (ha : 1 ≤ a) (hM : NoUniformMinor M (a + 1) (b + 1)
       (Exists.intro ((fun x1 x2 ↦ x1 + x2) a 1) (hr.symm)))
   by_contra! hcon
   obtain ⟨B, hB⟩ := M.exists_isBase
-  set Unif : Set (Set α) := {X | X ⊆ M.E ∧ (M ↾ X).IsFinRankUniform (a + 1) } with h_UnifS
+  set Unif : Set (Set α) := {X | X ⊆ M.E ∧ (M ↾ X).IsFiniteRankUniform (a + 1) } with h_UnifS
   have hne : Unif.Nonempty := by
     refine ⟨B, (IsBase.subset_ground hB), ?_, ?_,⟩
     · rwa [eRank_restrict, hB.eRk_eq_eRank]
