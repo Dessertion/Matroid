@@ -1,9 +1,6 @@
 import Matroid.Graph.Planarity.Realization
 import Matroid.Graph.Connected.Defs
-import Matroid.Graph.Walk.Basic
 import Mathlib.Topology.Connected.PathConnected
-import Mathlib.Topology.Algebra.Monoid
-import Mathlib.Topology.Constructions
 
 /-!
 # Path-connectedness of graph realization
@@ -109,14 +106,17 @@ sets meeting only finitely many cells, extract a finite subcover, and read off a
 sequence.  Formalizing this requires additional lemmas on the quotient topology.
 -/
 
-theorem connected_of_pathConnectedSpace [PathConnectedSpace (Realization G)] :
-    G.Connected := by
+theorem connected_of_pathConnectedSpace [PathConnectedSpace (Realization G)] : G.Connected := by
   rw [connected_iff]
   constructor
   · /- `Realization G` is path-connected so nonempty. An arbitrary point `x` is in either `V(G)`
     or somewhere on an edge. An edge must be incident to a vertex so in either case, there is a
     vertex in `G`. -/
-    sorry
+    obtain ⟨x' | ⟨e', i⟩⟩ := (nonempty_quotient_iff _).mp <| PathConnectedSpace.nonempty
+      (X := (Realization G))
+    · use x', x'.prop
+    obtain ⟨x, y, hxy⟩ := G.exists_isLink_of_mem_edgeSet e'.prop
+    use x, hxy.left_mem
   classical
   intro x y hx hy
   sorry

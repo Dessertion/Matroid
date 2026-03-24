@@ -1,11 +1,6 @@
 import Matroid.Graph.Finite
 import Matroid.Graph.GraphLike.ArbRel
-import Mathlib.Logic.Relation
-import Mathlib.Topology.Constructions
 import Mathlib.Topology.UnitInterval
-import Mathlib.Topology.Order
-import Mathlib.Topology.UniformSpace.Basic
-import Mathlib.Topology.Compactness.Compact
 
 namespace Graph
 
@@ -66,11 +61,11 @@ def PreRealization (G : Graph α β) : Type _ :=
 instance instUniformSpacePreRealization (G : Graph α β) : UniformSpace (PreRealization G) :=
   Sum.instUniformSpace
 
-/-- The topology induced by the sum uniformity agrees with the disjoint-union topology. -/
-theorem preRealization_topology_eq_sum (G : Graph α β) :
-    @UniformSpace.toTopologicalSpace (PreRealization G) (instUniformSpacePreRealization G) =
-      @instTopologicalSpaceSum (DiscreteVtx G) (DiscreteEdge G × I) _ _ :=
-  rfl
+-- /-- The topology induced by the sum uniformity agrees with the disjoint-union topology. -/
+-- theorem preRealization_topology_eq_sum (G : Graph α β) :
+--     @UniformSpace.toTopologicalSpace (PreRealization G) (instUniformSpacePreRealization G) =
+--       @instTopologicalSpaceSum (DiscreteVtx G) (DiscreteEdge G × I) _ _ :=
+--   rfl
 
 theorem uniformContinuous_preRealization_inl (G : Graph α β) :
     UniformContinuous (Sum.inl : DiscreteVtx G → PreRealization G) :=
