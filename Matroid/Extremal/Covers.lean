@@ -423,10 +423,6 @@ lemma coverNumber_eRank [M.Nonempty] : M.coverNumber (fun M' X ↦ M'.eRk X ≤ 
   refine h2.antisymm' ?_
   simpa using (IsRankCover_ground M).coverNumber_le
 
---Need approval
-
-
-
 lemma coverNumber_delete_loop (hne : (M ＼ D).Nonempty) (hk : 1 ≤ k) (hD : D ⊆ M.loops ) :
     M.coverNumber (fun M X ↦ M.eRk X ≤ k) = (M ＼ D).coverNumber (fun M X ↦ M.eRk X ≤ k) := by
   obtain ⟨T, hT, hTen ⟩ := exists_min_cover (RankPropCover_exists (M := M) hk )
@@ -755,8 +751,8 @@ lemma coverNumber_rank_Frombase {a b : ℕ} (ha : 1 ≤ a)
     (Nat.choose b a) * M.coverNumber (fun M X ↦ M.eRk X ≤ (a + 1)) := by
   sorry
 
-lemma coverNumber_Bound {a b : ℕ} (ha : a ≠ 0) (hb : a ≤ b)
-    (hM : NoUniformMinor M ( a + 1 ) (b + 1)) :
+lemma coverNumber_Bound {M : Matroid α} [M.RankPos] {a b : ℕ} {n : ℕ∞} (ha : a ≠ 0) (hb : a ≤ b)
+    (hM : NoUniformMinor M ( a + 1 ) (b + 1)) (hn : M.eRank = a + n) :
     M.coverNumber (fun M X ↦ M.eRk X ≤ a) ≤ (Nat.choose b a)^(M.eRank - a) := by
   obtain htop | hfin := eq_or_ne M.eRank ⊤
   · grw [htop, ENat.top_sub_coe, ENat.epow_top, ← le_top]
@@ -765,67 +761,80 @@ lemma coverNumber_Bound {a b : ℕ} (ha : a ≠ 0) (hb : a ≤ b)
     rw [← ENat.coe_one, ENat.coe_lt_coe]
     suffices b.choose a ≠ 0 ∧ b.choose a ≠ 1 by lia
     exact ⟨(Nat.choose_pos hlt.le).ne.symm, by simp [Nat.choose_eq_one_iff, hlt.ne.symm, ha]⟩
-  suffices hn : ∀ n : ℕ, M.eRank = n + a + 1 →
-      M.coverNumber (fun M X ↦ M.eRk X ≤ a) ≤ (Nat.choose b a)^(n + 1 )
-  ·
+  by_cases h0 : n = 0
+  · -- When M.eRank = a, you can cover with (M.E). This is a lemma somewhere
     sorry
-  intro n hn
-  induction n generalizing M with
-  | zero => sorry
-  | succ n IH => sorry
+  --Now you can assume n ≠ 0 and n - 1 makes sense
+  obtain ⟨e, heC⟩ : ∃ e, M.IsNonloop e := exists_isNonloop M
+  have h' : (M ／ {e}).eRank < M.eRank := by sorry
+  have hRP : ( M ／ {e}).RankPos := by sorry --I think here you need n ≠ 0
+  have hM' : NoUniformMinor ( M ／ {e}) ( a + 1 ) (b + 1) := by sorry
+  have hn' : (M ／ {e}).eRank = a + (n - 1) := by sorry
+  have ih := coverNumber_Bound (M := M ／ {e}) (a := a) (b := b) ha hb hM' (n := n - 1)
+  sorry
+termination_by M.eRank
+
+  -- suffices hn : ∀ n : ℕ, M.eRank = n + a + 1 →
+  --     M.coverNumber (fun M X ↦ M.eRk X ≤ a) ≤ (Nat.choose b a)^(n + 1 )
+  -- ·
+  --   sorry
+  -- intro n hn
+  -- induction n generalizing M with
+  -- | zero => sorry
+  -- | succ n IH => sorry
+
+-- -- change `ha` to `a ≠ 0`.
+-- lemma coverNumber_Bound_contract [M.RankFinite] {a b : ℕ} (ha : 1 ≤ a)
+--     (hM : NoUniformMinor M ( a + 1 ) (b + 1)) (hC : C ⊂ M.E)  :
+--     M.coverNumber (fun M X ↦ M.eRk X ≤ a) ≤
+--     (Nat.choose b a)^(M.eRk C ) * (M／C).coverNumber (fun M X ↦ M.eRk X ≤ a) := by
+--   suffices hn : ∀ n : ℕ, n = M.eRk C →  M.coverNumber (fun M X ↦ M.eRk X ≤ a) ≤
+--       (Nat.choose b a)^n * (M／C).coverNumber (fun M X ↦ M.eRk X ≤ a)
+--   · obtain ⟨ n, hh ⟩ := ENat.ne_top_iff_exists.1 ( eRk_ne_top (M := M) (X := C))
+--     rw[←hh]
+--     exact le_of_eq_of_le rfl (hn n hh)
+--   intro n hn
+--   induction n generalizing M C with
+--   | zero =>
+--     simp only [pow_zero, one_mul]
+--     rw [coverNumber_contract_loop ((ground_nonempty_iff (M ＼ C)).mp (nonempty_of_ssubset hC ) )
+--       (ENat.one_le_coe.mpr ha ) ((eRk_eq_zero_iff (subset_of_ssubset hC)).1 hn.symm )]
+--   | succ n IH =>
+--   grw[coverNumber_rank_Frombase ha hM ]
+--   have hresP : (M ↾ C).RankPos :=
+--     (eRank_ne_zero_iff (M ↾ C)).mp <| by simp [eRank_restrict, ne_eq, ← hn]
+
+--   obtain ⟨e, heC ⟩ := exists_isNonloop (M ↾ C)
+--   obtain ⟨heC1, heC2 ⟩ := restrict_isNonloop_iff.1 heC
+--   have heN : (M／ {e}).Nonempty := by
+--     rw[←(M／ {e}).ground_nonempty_iff, contract_ground]
+--     exact (Set.nonempty_of_ssubset (by grind ) )
+--   grw[ coverNumber_contract_one (heC1.mem_ground ) heC1 heN]
+--   have hn1 : (M／ {e}).eRk (C \ {e}) = n := by
+--     have hrelrk := IsNonloop.eRelRk_add_one_eq heC1 (C \ {e})
+--     simp only [insert_diff_singleton, insert_eq_of_mem heC2, ←hn, Nat.cast_add, Nat.cast_one,
+--       ne_eq, ENat.one_ne_top, not_false_eq_true,
+--       add_left_inj_of_ne_top] at hrelrk
+--     rwa [eRelRk.eq_1] at hrelrk
+--   have hsub1 : (C \ {e}) ⊂ (M／ {e}).E := by
+--     simp only [contract_ground]
+--     refine Set.ssubset_iff_subset_ne.mpr ⟨diff_subset_diff_left (subset_of_ssubset hC), ?_ ⟩
+--     by_contra hc
+--     have h : C = M.E := by
+--       rw [←insert_diff_self_of_mem heC2, ←insert_diff_self_of_mem heC1.mem_ground, hc]
+--     have hCE : C ≠ M.E := by exact Std.ne_of_lt hC
+--     rw [h] at hCE
+--     exact false_of_ne hCE
+--   grw[ IH (hM.minor (contract_isMinor M {e} )) hsub1 hn1.symm ]
+--   simp only [contract_contract, union_diff_self, singleton_union, ge_iff_le, insert_eq_of_mem heC2,
+--     ←mul_assoc ]
+--   nth_rw 1 [ ←ENat.epow_one (x := ↑(b.choose a)), ←ENat.epow_natCast,
+--     ←ENat.epow_add (x :=  ↑(b.choose a)) (y := 1) (z := n ), ←ENat.coe_one, ←ENat.coe_add,
+--     ENat.epow_natCast, add_comm ]
+
 
 -- change `ha` to `a ≠ 0`.
-lemma coverNumber_Bound_contract [M.RankFinite] {a b : ℕ} (ha : 1 ≤ a)
-    (hM : NoUniformMinor M ( a + 1 ) (b + 1)) (hC : C ⊂ M.E)  :
-    M.coverNumber (fun M X ↦ M.eRk X ≤ a) ≤
-    (Nat.choose b a)^(M.eRk C ) * (M／C).coverNumber (fun M X ↦ M.eRk X ≤ a) := by
-  suffices hn : ∀ n : ℕ, n = M.eRk C →  M.coverNumber (fun M X ↦ M.eRk X ≤ a) ≤
-      (Nat.choose b a)^n * (M／C).coverNumber (fun M X ↦ M.eRk X ≤ a)
-  · obtain ⟨ n, hh ⟩ := ENat.ne_top_iff_exists.1 ( eRk_ne_top (M := M) (X := C))
-    rw[←hh]
-    exact le_of_eq_of_le rfl (hn n hh)
-  intro n hn
-  induction n generalizing M C with
-  | zero =>
-    simp only [pow_zero, one_mul]
-    rw [coverNumber_contract_loop ((ground_nonempty_iff (M ＼ C)).mp (nonempty_of_ssubset hC ) )
-      (ENat.one_le_coe.mpr ha ) ((eRk_eq_zero_iff (subset_of_ssubset hC)).1 hn.symm )]
-  | succ n IH =>
-  grw[coverNumber_rank_Frombase ha hM ]
-  have hresP : (M ↾ C).RankPos :=
-    (eRank_ne_zero_iff (M ↾ C)).mp <| by simp [eRank_restrict, ne_eq, ← hn]
-
-  obtain ⟨e, heC ⟩ := exists_isNonloop (M ↾ C)
-  obtain ⟨heC1, heC2 ⟩ := restrict_isNonloop_iff.1 heC
-  have heN : (M／ {e}).Nonempty := by
-    rw[←(M／ {e}).ground_nonempty_iff, contract_ground]
-    exact (Set.nonempty_of_ssubset (by grind ) )
-  grw[ coverNumber_contract_one (heC1.mem_ground ) heC1 heN]
-  have hn1 : (M／ {e}).eRk (C \ {e}) = n := by
-    have hrelrk := IsNonloop.eRelRk_add_one_eq heC1 (C \ {e})
-    simp only [insert_diff_singleton, insert_eq_of_mem heC2, ←hn, Nat.cast_add, Nat.cast_one,
-      ne_eq, ENat.one_ne_top, not_false_eq_true,
-      add_left_inj_of_ne_top] at hrelrk
-    rwa [eRelRk.eq_1] at hrelrk
-  have hsub1 : (C \ {e}) ⊂ (M／ {e}).E := by
-    simp only [contract_ground]
-    refine Set.ssubset_iff_subset_ne.mpr ⟨diff_subset_diff_left (subset_of_ssubset hC), ?_ ⟩
-    by_contra hc
-    have h : C = M.E := by
-      rw [←insert_diff_self_of_mem heC2, ←insert_diff_self_of_mem heC1.mem_ground, hc]
-    have hCE : C ≠ M.E := by exact Std.ne_of_lt hC
-    rw [h] at hCE
-    exact false_of_ne hCE
-  grw[ IH (hM.minor (contract_isMinor M {e} )) hsub1 hn1.symm ]
-  simp only [contract_contract, union_diff_self, singleton_union, ge_iff_le, insert_eq_of_mem heC2,
-    ←mul_assoc ]
-  nth_rw 1 [ ←ENat.epow_one (x := ↑(b.choose a)), ←ENat.epow_natCast,
-    ←ENat.epow_add (x :=  ↑(b.choose a)) (y := 1) (z := n ), ←ENat.coe_one, ←ENat.coe_add,
-    ENat.epow_natCast, add_comm ]
-
-
--- change `ha` to `a ≠ 0`.
-lemma coverNumber_Bound_contract' {M : Matroid α} {C : Set α} {a b : ℕ} (ha : a ≠ 0) (hb : a ≤ b)
+lemma coverNumber_Bound_contract {M : Matroid α} {C : Set α} {a b : ℕ} (ha : a ≠ 0) (hb : a ≤ b)
     (hM : NoUniformMinor M (a + 1) (b + 1)) (hC : C ⊂ M.E)  :
     M.coverNumber (fun M X ↦ M.eRk X ≤ a) ≤
     (Nat.choose b a)^(M.eRk C) * (M ／ C).coverNumber (fun M X ↦ M.eRk X ≤ a) := by
@@ -869,7 +878,7 @@ lemma coverNumber_Bound_contract' {M : Matroid α} {C : Set α} {a b : ℕ} (ha 
     rw[←(M／ {e}).ground_nonempty_iff, contract_ground]
     exact (Set.nonempty_of_ssubset (by grind ) )
   have : 1 ≤ a := by exact Nat.one_le_iff_ne_zero.mpr ha
-  have ih := coverNumber_Bound_contract' (M := M ／ {e}) (C := C \ {e}) (a := a) (b := b) ha
+  have ih := coverNumber_Bound_contract (M := M ／ {e}) (C := C \ {e}) (a := a) (b := b) ha
     hb (hM.minor (contract_isMinor M {e} )) hsub1
   grw [coverNumber_rank_Frombase (Nat.one_le_iff_ne_zero.mpr ha) hM, coverNumber_contract_one (heC.1.mem_ground ) heC.1 heN, ih ]
   simp only [contract_contract, union_diff_self, singleton_union, ge_iff_le, insert_eq_of_mem heC.2,
@@ -877,6 +886,7 @@ lemma coverNumber_Bound_contract' {M : Matroid α} {C : Set α} {a b : ℕ} (ha 
   nth_rw 1 [←eRelRk.eq_1, ←ENat.epow_one (x := ↑(b.choose a)),
     ←ENat.epow_add (x :=  ↑(b.choose a)) (y := 1) (z := (M.eRelRk {e} (C \ {e})) ),
     ←add_comm (a := (M.eRelRk {e} (C \ {e}))) (b:= 1 ), (heC.1).eRelRk_add_one_eq, insert_diff_singleton, insert_eq_of_mem heC.2 ]
+
 termination_by M.eRk C
 
 

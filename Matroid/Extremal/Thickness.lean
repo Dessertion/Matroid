@@ -9,7 +9,7 @@ variable {α : Type*} {M N M' : Matroid α} {I F X Y F' F₀ F₁ F₂ P L H H�
 open Set
 namespace Matroid
 
-section defs
+section Thick
 
 def IsThick (M : Matroid α) (d : ℕ∞) : Prop := d ≤ M.coverNumber Matroid.Nonspanning
 
@@ -48,6 +48,7 @@ lemma IsThick_two (M : Matroid α) [M.Nonempty] : M.IsThick 2 := by
 
 lemma IsThick.mono {d' : ℕ∞} (hTd : M.IsThick d ) (hd : d' ≤ d ) : M.IsThick d' := by sorry
 
+lemma IsThick_ground_set (M : Matroid α) (d : ℕ∞) : M.IsThick_set M.E d ↔ M.IsThick d := by sorry
 
 lemma IsThick_set.Minor_mon (hTXd : M.IsThick_set X d) (hNM : N ≤m M ) ( hX : X ⊆ N.E )
     (hXne : (M ↾ X ).Nonempty) :
@@ -76,8 +77,46 @@ lemma IsThick_set.Minor_mon (hTXd : M.IsThick_set X d) (hNM : N ≤m M ) ( hX : 
     (by grind) ]
   exact (IsThick_set_iff M X d).mp hTXd
 
+lemma IsThick.Contract_mon (hTXd : M.IsThick d) (hC : C ⊆ M.E ) (hne : (M ／ C).Nonempty)
+    : (M ／ C).IsThick d := by
+  grw [IsThick_iff, ←NonSpanningNumber_contract hC hne  ]
+  exact (IsThick_iff M d).mp hTXd
 
 
+--Need Approval
+lemma exists_minor_encard (M : Matroid α) (hr : a ≤ M.eRank ) : ∃ X, X ⊆ M.E ∧ ( M ／ X).eRank = a := by
+  obtain ⟨B, hB ⟩ := M.exists_isBase
+  grw [← hB.encard_eq_eRank] at hr
+  have ⟨Y, hYB, hYen ⟩ : ∃ Y, Y ⊆ B ∧ Y.encard = a := exists_subset_encard_eq hr
+  use (B \ Y)
+  refine ⟨ by grind, ?_ ⟩
+  rw [ M.eRank_contract_eq_eRelRk_ground (B \ Y), (isBasis_self_iff_indep.mpr
+    (Indep.diff (IsBase.indep hB) Y)).eRelRk_eq_encard_diff_of_subset_isBasis
+    (isBasis_ground_iff.mpr hB) (by grind) ]
+  simpa [sdiff_sdiff_right_self, inf_eq_inter, inter_eq_self_of_subset_right hYB ]
+
+lemma thick_Bound {M : Matroid α} [M.RankPos] {a b : ℕ} (ha : a ≠ 0) (hb : a ≤ b)
+    (hM : NoUniformMinor M ( a + 1 ) (b + 1)) (ht : M.IsThick (Nat.choose b a)) :
+    M.eRank ≤ a := by
+  by_contra hc
+  simp only [not_le] at hc
+  wlog hlt : M.eRank = a + 1 generalizing M with aux
+  · obtain ⟨X, hX, hXeRK ⟩ := M.exists_minor_encard (Order.add_one_le_of_lt hc)
+    have : (M ／ X).RankPos := by
+      refine (eRank_ne_zero_iff (M ／ X)).mp ?_
+      simp only [hXeRK, ne_eq, add_eq_zero, ENat.coe_eq_zero, one_ne_zero, and_false,
+        not_false_eq_true]
+    exact aux (M := M ／ X) (hM.minor (contract_isMinor M X )) (ht.Contract_mon hX (rankPos_nonempty) )
+      (by simp only [hXeRK, ENat.natCast_lt_succ ]) hXeRK
+  sorry
+end Thick
+
+section Firm
+
+@[mk_iff]
+structure IsFirm (M : Matroid α) (d : ℕ∞) (X : Set (Set α)) : Prop where
+  subset : ∀ x ∈ X, x ⊆ M.E
+  eRk_union : ∀ X' ⊆ X, X.encard < d * X'.encard → M.eRk (⋃₀X) ≤ M.eRk (⋃₀X')
 
 
-end defs
+end Firm
