@@ -820,18 +820,18 @@ lemma _root_.WList.nonempty_iff_toGraph_edgeSet_nonempty {w : WList α β} :
   · exact hp.first_isLeaf_toGraph hne
   · exact hp.last_isLeaf_toGraph hne
 
-@[simp, grind =>]
+@[simp]
 lemma IsPathGraph.isLeaf_iff (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
     P.IsLeaf x ↔ x = hP.first ∨ x = hP.last := by
   change x ∈ {x | P.IsLeaf x} ↔ x = hP.first ∨ x = hP.last
   simp [hP.setOf_isLeaf_eq hne]
 
-@[simp, grind →]
+@[simp]
 lemma IsPathGraph.isLeaf_first (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
     P.IsLeaf hP.first :=
   hP.isLeaf_iff hne |>.mpr (Or.inl rfl)
 
-@[simp, grind →]
+@[simp]
 lemma IsPathGraph.isLeaf_last (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
     P.IsLeaf hP.last :=
   hP.isLeaf_iff hne |>.mpr (Or.inr rfl)
@@ -913,50 +913,49 @@ lemma IsPathGraph.eDegree_last_eq_one (hP : P.IsPathGraph) (hne : E(P).Nonempty)
 
 -- TODO: MOVE ALL LEAF LEMMAS
 
-@[simp, grind →]
+@[simp]
 lemma IsPendant.isLeafEdge (h : G.IsPendant e x) : G.IsLeafEdge e :=
   ⟨x, h⟩
 
-@[simp, grind →]
+@[simp]
 lemma IsPendant.inc (h : G.IsPendant e x) : G.Inc e x :=
   h.isNonloopAt.inc
 
-@[simp, grind →]
+@[simp]
 lemma IsLeafEdge.edge_mem (he : G.IsLeafEdge e) : e ∈ E(G) := by
   obtain ⟨x, h⟩ := he
   exact h.edge_mem
 
-@[grind =>, simp]
+@[simp]
 lemma not_isPendant_of_not_isLeafEdge (he : ¬ G.IsLeafEdge e) (x : α) : ¬ G.IsPendant e x := by
   contrapose he
   exact ⟨x, he⟩
 
-@[grind]
 def IsNonleafEdge (G : Graph α β) (e : β) :=
     ∃ x y, ¬ G.IsPendant e x ∧ ¬ G.IsPendant e y ∧ G.IsLink e x y
 
 namespace IsNonleafEdge
 
-@[grind ., simp]
+@[simp]
 lemma edge_mem (he : G.IsNonleafEdge e) : e ∈ E(G) := by
   obtain ⟨_, _, _, _, h⟩ := he
   exact h.edge_mem
 
-@[grind =>, simp]
+@[simp]
 lemma not_isPendant (he : G.IsNonleafEdge e) (x : α) : ¬ G.IsPendant e x := by
   intro bad
   obtain ⟨y, z, hey, hez, heyz⟩ := he
   obtain (rfl|rfl) := bad.inc.eq_or_eq_of_isLink heyz
     <;> contradiction
 
-@[grind →, simp]
+@[simp]
 lemma not_isLeafEdge (he : G.IsNonleafEdge e) : ¬ G.IsLeafEdge e := by
   simp [IsLeafEdge]
   exact he.not_isPendant
 
 end IsNonleafEdge
 
-@[grind →, simp]
+@[simp]
 lemma IsLeafEdge.not_isNonleafEdge (h : G.IsLeafEdge e) : ¬ G.IsNonleafEdge e := by
   contrapose h
   exact h.not_isLeafEdge
