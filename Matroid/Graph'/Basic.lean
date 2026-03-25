@@ -1,7 +1,7 @@
 /-
-Copyright (c) 2026 Jun Kwon. All rights reserved.
+Copyright (c) 2025 Peter Nelson. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Jun Kwon
+Authors: Peter Nelson, Jun Kwon
 -/
 module
 
@@ -10,15 +10,65 @@ public import Mathlib.Data.Sym.Sym2
 public import Matroid.Graph.GraphLike.Basic
 
 /-!
-# Dart graphs (half-edges)
+# Multigraphs
 
-Vertices and darts, with each undirected edge a non-diagonal `Sym2 β` in `edgeSet` and incidence
-`attach : ↥halfEdgeSet → α`. The partner dart is derived via `Sym2.Mem.other`.
+A multigraph is a set of vertices and a set of edges,
+together with incidence data that associates each edge `e`
+with an unordered pair `s(x,y)` of vertices called the *ends* of `e`.
+The pair of `e` and `s(x,y)` is called a *link*.
+The vertices `x` and `y` may be equal, in which case `e` is a *loop*.
+There may be more than one edge with the same ends.
 
-This file mirrors much of the API of `Mathlib.Combinatorics.Graph.Basic`: edges lie in `Sym2 β` via
-`Graph.edge`, `E(G)` is `edgeSet`, each half-edge attaches to a vertex via `attach`, binary
-incidence is `isLink`, unary incidence on edges is `Inc`, adjacency is `GraphLike.Adj`, and we
-include loop/nonloop predicates, incidence/loop sets, and `Compatible`.
+If a multigraph has no loops and has at most one edge for every given ends, it is called *simple*,
+and these objects are also formalized as `SimpleGraph`.
+
+This module defines `Graph α β` for a vertex type `α` and an edge type `β`,
+and gives basic API for incidence, adjacency and extensionality.
+The design broadly follows [Chou1994].
+
+## Main definitions
+
+For `G : Graph α β`, ...
+
+* `V(G)` denotes the vertex set of `G` as a term in `Set α`.
+* `E(G)` denotes the edge set of `G` as a term in `Set β`.
+* `G.IsLink e x y` means that the edge `e : β` has vertices `x : α` and `y : α` as its ends.
+* `G.Inc e x` means that the edge `e : β` has `x` as one of its ends.
+* `G.Adj x y` means that there is an edge `e` having `x` and `y` as its ends.
+* `G.IsLoopAt e x` means that `e` is a loop edge with both ends equal to `x`.
+* `G.IsNonloopAt e x` means that `e` is a non-loop edge with one end equal to `x`.
+* `G.incidenceSet x` is the set of edges incident to `x`.
+* `G.loopSet x` is the set of loops with both ends equal to `x`.
+* `G.copy` creates a definitional copy of a graph with propositionally equal data.
+* `G.Compatible H` means that `G` and `H` agree on the incidence relation for their shared edges.
+* `Graph.noEdge V` is the graph with vertex set `V` and no edges.
+* `Graph.bouquet v E` is the graph with vertex set `{v}` and edge set `E`,
+  where every edge is a loop at `v`.
+* `Graph.banana u v E` is the graph with vertex set `{u, v}` and edge set `E`,
+  where every edge connects `u` and `v`.
+
+## Implementation notes
+
+Unlike the design of `SimpleGraph`, the vertex and edge sets of `G` are modelled as sets
+`V(G) : Set α` and `E(G) : Set β`, within ambient types, rather than being types themselves.
+This mimics the 'embedded set' design used in `Matroid`, which seems to be more convenient for
+formalizing real-world proofs in combinatorics.
+
+A specific advantage is that this allows subgraphs of `G : Graph α β` to also exist on
+an equal footing with `G` as terms in `Graph α β`,
+and so there is no need for a `Graph.subgraph` type and all the associated
+definitions and canonical coercion maps. The same will go for minors and the various other
+partial orders on multigraphs.
+
+The main tradeoff is that parts of the API will need to care about whether a term
+`x : α` or `e : β` is a 'real' vertex or edge of the graph, rather than something outside
+the vertex or edge set. This is an issue, but is likely amenable to automation.
+
+## Notation
+
+Reflecting written mathematics, we use the compact notations `V(G)` and `E(G)` to
+refer to the `vertexSet` and `edgeSet` of `G : Graph α β`.
+If `G.IsLink e x y` then we refer to `e` as `edge` and `x` and `y` as `left` and `right` in names.
 -/
 
 @[expose] public section
@@ -27,21 +77,36 @@ variable {α β : Type*} {x y z u v w : α} {a b c d : β} {e f : Sym2 β}
 
 open Set Sym2 GraphLike
 
+/-- A multigraph with vertices of type `α` and edges of type `β`,
+as described by vertex and edge sets `vertexSet : Set α` and `edgeSet : Set β`,
+and a predicate `IsLink` describing whether an edge `e : β` has vertices `x y : α` as its ends.
+
+The `edgeSet` structure field can be inferred from `IsLink`
+via `edge_mem_iff_exists_isLink` (and this structure provides default values
+for `edgeSet` and `edge_mem_iff_exists_isLink` that use `IsLink`).
+While the field is not strictly necessary, when defining a graph we often
+immediately know what the edge set should be,
+and furthermore having `edgeSet` separate can be convenient for
+definitional equality reasons.
+-/
 structure Graph (α β : Type*) where
+  /-- The vertex set. -/
   vertexSet : Set α
+  /-- The edge set. -/
   edgeSet : Set (Sym2 β)
+  /-- The edge set is pairwise disjoint. -/
   edgeSet_pairwise_disjoint :
     ∀ ⦃e f : Sym2 β⦄, e ∈ edgeSet → f ∈ edgeSet → e ≠ f → ∀ ⦃x y : β⦄, x ∈ e → y ∈ f → x ≠ y
+  /-- The edge set does not contain any edges with one half-edge. -/
   edgeSet_not_isDiag : ∀ ⦃e : Sym2 β⦄, e ∈ edgeSet → ¬IsDiag e
+  /-- The attach function attaches a half-edge to a vertex. -/
   attach : {d : β | ∃ e ∈ edgeSet, d ∈ e} → α
+  /-- the vertex set contains all the vertices with at least one half-edge attached to it. -/
   attach_mem : range attach ⊆ vertexSet
 
 namespace Graph
 
 variable {G G₁ G₂ H : Graph α β}
-
-/-- `V(G)` denotes the `vertexSet` of a graph `G`. -/
-scoped notation "V(" G ")" => Graph.vertexSet G
 
 /-- `E(G)` denotes the `edgeSet` of a graph `G`. -/
 scoped notation "E(" G ")" => Graph.edgeSet G
@@ -169,6 +234,9 @@ noncomputable instance : GraphLike α ((β × α) × (β × α)) (Graph α β) w
     · rintro ⟨b, rfl, rfl⟩
       refine ⟨dartOf G b, ⟨b, rfl⟩, ?_, ?_⟩ <;> simp [dartOf, DartLike.fst, DartLike.snd]
 
+@[simp] lemma verts_eq (G : Graph α β) : V(G) = G.vertexSet := rfl
+@[simp] lemma darts_eq (G : Graph α β) : darts G = Set.range (dartOf G) := rfl
+
 /-! ### Binary incidence -/
 
 def isLink (G : Graph α β) (e : Sym2 β) (x y : α) : Prop :=
@@ -190,40 +258,40 @@ instance : Std.Symm (G.isLink e) where
     · rw [← he, edge_inv]
     · simpa [inv'_inv'] using hx
 
-@[symm] theorem isLink.symm (h : G.isLink e x y) : G.isLink e y x := symm_of (G.isLink e) h
-
-theorem isLink_comm : G.isLink e x y ↔ G.isLink e y x := ⟨isLink.symm, isLink.symm⟩
-
-theorem isLink_of_mem_halfEdge (ha : a ∈ H(G)) :
-    G.isLink (G.edge ⟨a, ha⟩) (G.attach ⟨a, ha⟩) (G.attach (G.inv' ⟨a, ha⟩)) :=
-  ⟨⟨a, ha⟩, rfl, rfl, rfl⟩
-
 theorem isLink.edge_mem (h : G.isLink e x y) : e ∈ E(G) := by
   obtain ⟨a, rfl, -, -⟩ := h
   exact edge_mem_edgeSet a
 
-theorem mem_edgeSet_iff_exists_isLink : e ∈ E(G) ↔ ∃ x y, G.isLink e x y := by
-  refine ⟨fun he ↦ ?_, fun ⟨x, y, h⟩ ↦ h.edge_mem⟩
-  obtain ⟨a, rfl⟩ := mem_edgeSet_iff.mp he
-  exact ⟨_, _, isLink_of_mem_halfEdge a.property⟩
-
-theorem edgeSet_eq_setOf_exists_isLink : E(G) = {e | ∃ x y, G.isLink e x y} :=
-  Set.ext fun _ ↦ mem_edgeSet_iff_exists_isLink
-
-theorem halfEdgeSet_eq_setOf_exists_isLink :
-    H(G) = {a : β | ∃ (ha : a ∈ H(G)) (x y : α), G.isLink (G.edge ⟨a, ha⟩) x y} := by
-  ext a
-  exact ⟨fun ha ↦ ⟨ha, _, _, isLink_of_mem_halfEdge ha⟩, fun ⟨ha, _, _, h⟩ ↦ ha⟩
-
 @[simp]
-theorem not_isLink_of_notMem_edgeSet (he : e ∉ E(G)) : ¬G.isLink e x y :=
+lemma not_isLink_of_notMem_edgeSet (he : e ∉ E(G)) : ¬ G.isLink e x y :=
   mt isLink.edge_mem he
+
+@[symm] theorem isLink.symm (h : G.isLink e x y) : G.isLink e y x := symm_of (G.isLink e) h
 
 theorem isLink.left_mem (h : G.isLink e x y) : x ∈ G.vertexSet := by
   obtain ⟨a, -, rfl, -⟩ := h
   exact G.attach_mem (mem_range_self a)
 
 theorem isLink.right_mem (h : G.isLink e x y) : y ∈ G.vertexSet := h.symm.left_mem
+
+lemma isLink_comm : G.isLink e x y ↔ G.isLink e y x := ⟨.symm, .symm⟩
+
+theorem isLink_of_mem_halfEdge (ha : a ∈ H(G)) :
+    G.isLink (G.edge ⟨a, ha⟩) (G.attach ⟨a, ha⟩) (G.attach (G.inv' ⟨a, ha⟩)) :=
+  ⟨⟨a, ha⟩, rfl, rfl, rfl⟩
+
+theorem mem_edgeSet_iff_exists_isLink : e ∈ E(G) ↔ ∃ x y, G.isLink e x y := by
+  refine ⟨fun he ↦ ?_, fun ⟨x, y, h⟩ ↦ h.edge_mem⟩
+  obtain ⟨a, rfl⟩ := mem_edgeSet_iff.mp he
+  exact ⟨_, _, isLink_of_mem_halfEdge a.property⟩
+
+lemma edgeSet_eq_setOf_exists_isLink : E(G) = {e | ∃ x y, G.isLink e x y} :=
+  Set.ext fun _ ↦ mem_edgeSet_iff_exists_isLink
+
+theorem halfEdgeSet_eq_setOf_exists_isLink :
+    H(G) = {a : β | ∃ (ha : a ∈ H(G)) (x y : α), G.isLink (G.edge ⟨a, ha⟩) x y} := by
+  ext a
+  exact ⟨fun ha ↦ ⟨ha, _, _, isLink_of_mem_halfEdge ha⟩, fun ⟨ha, _, _, h⟩ ↦ ha⟩
 
 theorem isLink.left_eq_or_eq (h : G.isLink e x y) (h' : G.isLink e z w) : x = z ∨ x = w := by
   obtain ⟨a, hab, rfl, rfl⟩ := h
@@ -270,9 +338,11 @@ theorem isLink.isLink_iff_sym2_eq (h : G.isLink e x y) {x' y' : α} :
 lemma isLink_attach {a : H(G)} : G.isLink (G.edge a) (G.attach a) (G.attach (G.inv' a)) :=
   ⟨a, rfl, rfl, rfl⟩
 
-/-! ### Edge–vertex incidence -/
+/-! ### Edge-vertex incidence -/
 
-/-- The unary incidence predicate: `x` is an end of the undirected edge `e`. -/
+/-- The unary incidence predicate of `G`. `G.Inc e x` means that the vertex `x`
+is one or both of the ends of the edge `e`.
+In the `Inc` namespace, we use `edge` and `vertex` to refer to `e` and `x`. -/
 def Inc (G : Graph α β) (e : Sym2 β) (x : α) : Prop :=
   ∃ y, G.isLink e x y
 
@@ -280,7 +350,7 @@ lemma Inc.edge_mem (h : G.Inc e x) : e ∈ E(G) := h.choose_spec.edge_mem
 
 @[simp] lemma not_inc_of_notMem_edgeSet (he : e ∉ E(G)) : ¬G.Inc e x := mt Inc.edge_mem he
 
-lemma Inc.vertex_mem (h : G.Inc e x) : x ∈ G.vertexSet := h.choose_spec.left_mem
+lemma Inc.vertex_mem (h : G.Inc e x) : x ∈ V(G) := h.choose_spec.left_mem
 
 lemma isLink.inc_left (h : G.isLink e x y) : G.Inc e x := ⟨y, h⟩
 
@@ -296,14 +366,16 @@ lemma isLink.isLink_iff_eq (h : G.isLink e x y) : G.isLink e x z ↔ z = y :=
   ⟨fun h' ↦ h'.right_unique h, fun h' ↦ h' ▸ h⟩
 
 lemma isLink_iff_inc : G.isLink e x y ↔ G.Inc e x ∧ G.Inc e y ∧ ∀ z, G.Inc e z → z = x ∨ z = y := by
-  refine ⟨fun h ↦ ⟨h.inc_left, h.inc_right, fun z h' ↦ isLink.left_eq_or_eq h'.choose_spec h⟩, ?_⟩
+  refine ⟨fun h ↦ ⟨h.inc_left, h.inc_right, fun z h' ↦ h'.choose_spec.left_eq_or_eq h⟩, ?_⟩
   rintro ⟨⟨x', hx'⟩, ⟨y', hy'⟩, h⟩
   obtain rfl | rfl := h _ hx'.inc_right
   · obtain rfl | rfl := hx'.left_eq_or_eq hy'
     · assumption
-    · exact hy'.symm
-  · assumption
+    exact hy'.symm
+  assumption
 
+/-- Given a proof that the edge `e` is incident with the vertex `x` in `G`,
+noncomputably find the other end of `e`. (If `e` is a loop, this is equal to `x` itself). -/
 protected noncomputable def Inc.other (h : G.Inc e x) : α := h.choose
 
 @[simp] lemma Inc.isLink_other (h : G.Inc e x) : G.isLink e x h.other := h.choose_spec
@@ -328,7 +400,7 @@ lemma inc_attach {a : H(G)} : G.Inc (G.edge a) (G.attach a) :=
 
 /-! ### Loops and non-loops -/
 
-/-- Both ends of `e` equal `x`. -/
+/-- `G.IsLoopAt e x` means that both ends of the edge `e` are equal to the vertex `x`. -/
 def IsLoopAt (G : Graph α β) (e : Sym2 β) (x : α) : Prop := G.isLink e x x
 
 @[simp] lemma isLink_self_iff : G.isLink e x x ↔ G.IsLoopAt e x := Iff.rfl
@@ -342,7 +414,9 @@ lemma IsLoopAt.edge_mem (h : G.IsLoopAt e x) : e ∈ E(G) := h.inc.edge_mem
 
 lemma IsLoopAt.vertex_mem (h : G.IsLoopAt e x) : x ∈ Graph.vertexSet G := h.inc.vertex_mem
 
-/-- `e` joins `x` to a distinct vertex. -/
+/-- `G.IsNonloopAt e x` means that the vertex `x` is one but not both of the ends of the edge =`e`,
+or equivalently that `e` is incident with `x` but not a loop at `x` -
+see `Graph.isNonloopAt_iff_inc_not_isLoopAt`. -/
 def IsNonloopAt (G : Graph α β) (e : Sym2 β) (x : α) : Prop := ∃ y ≠ x, G.isLink e x y
 
 lemma IsNonloopAt.inc (h : G.IsNonloopAt e x) : G.Inc e x := h.choose_spec.2.inc_left
@@ -362,15 +436,15 @@ lemma IsNonloopAt.not_isLoopAt (h : G.IsNonloopAt e x) (y : α) : ¬G.IsLoopAt e
 lemma isNonloopAt_iff_inc_not_isLoopAt : G.IsNonloopAt e x ↔ G.Inc e x ∧ ¬G.IsLoopAt e x :=
   ⟨fun h ↦ ⟨h.inc, h.not_isLoopAt _⟩, fun ⟨⟨y, hy⟩, hn⟩ ↦ ⟨y, mt (fun h' ↦ h' ▸ hy) hn, hy⟩⟩
 
-lemma inc_isLoopAt_or_isNonloopAt (h : G.Inc e x) : G.IsLoopAt e x ∨ G.IsNonloopAt e x := by
+lemma Inc.isLoopAt_or_isNonloopAt (h : G.Inc e x) : G.IsLoopAt e x ∨ G.IsNonloopAt e x := by
   rw [isNonloopAt_iff_inc_not_isLoopAt]
   by_cases hl : G.IsLoopAt e x
   · exact Or.inl hl
   · exact Or.inr ⟨h, hl⟩
 
-lemma isLoopAt_iff_inc_not_isNonloopAt : G.IsLoopAt e x ↔ G.Inc e x ∧ ¬G.IsNonloopAt e x := by
+lemma isLoopAt_iff_inc_not_isNonloopAt : G.IsLoopAt e x ↔ G.Inc e x ∧ ¬ G.IsNonloopAt e x := by
   refine ⟨fun h ↦ ⟨h.inc, fun h' ↦ h'.not_isLoopAt x h⟩, fun ⟨hinc, hn⟩ ↦ ?_⟩
-  obtain hl | hnl := inc_isLoopAt_or_isNonloopAt hinc
+  obtain hl | hnl := hinc.isLoopAt_or_isNonloopAt
   · assumption
   exact absurd hnl hn
 
@@ -425,7 +499,7 @@ lemma halfEdgeSet_eq_of_isLink_iff (h : ∀ e x y, G₁.isLink e x y ↔ G₂.is
   exact ⟨e, (edgeSet_eq_of_isLink_iff h).symm ▸ he, hd⟩
 
 @[ext]
-theorem ext (hV : G₁.vertexSet = G₂.vertexSet) (hE : G₁.edgeSet = G₂.edgeSet)
+lemma ext (hV : G₁.vertexSet = G₂.vertexSet) (hE : G₁.edgeSet = G₂.edgeSet)
     (hA : ∀ (d : β) (h₁ : d ∈ G₁.halfEdgeSet) (h₂ : d ∈ G₂.halfEdgeSet),
       G₁.attach ⟨d, h₁⟩ = G₂.attach ⟨d, h₂⟩) : G₁ = G₂ := by
   rcases G₁ with ⟨V₁, E₁, p₁, nd₁, a₁, m₁⟩
@@ -451,7 +525,34 @@ lemma ext_isLink_attach (hV : G₁.vertexSet = G₂.vertexSet)
       G₁.attach ⟨d, h₁⟩ = G₂.attach ⟨d, h₂⟩) : G₁ = G₂ :=
   ext hV (edgeSet_eq_of_isLink_iff h) hA
 
-/-- Edges in `E(G)` incident with `x`. -/
+/-- `Graph.copy` produces a graph equal to `G` but with provided definitional choices
+for `vertexSet`, `edgeSet`, and `IsLink`. This is mainly useful for improving
+definitional equalities while keeping the same underlying graph. -/
+@[simps]
+def copy (G : Graph α β) {vertexSet : Set α} {edgeSet : Set (Sym2 β)}
+    (hvertexSet : V(G) = vertexSet) (hedgeSet : E(G) = edgeSet) : Graph α β where
+  vertexSet := vertexSet
+  edgeSet := edgeSet
+  edgeSet_pairwise_disjoint := by
+    simp_rw [← hedgeSet]
+    exact G.edgeSet_pairwise_disjoint
+  edgeSet_not_isDiag := by
+    simp_rw [← hedgeSet]
+    exact G.edgeSet_not_isDiag
+  attach := fun ⟨a, ha⟩ ↦ G.attach ⟨a, hedgeSet ▸ ha⟩
+  attach_mem := by
+    rintro _ ⟨⟨a, ha⟩, rfl⟩
+    exact hvertexSet ▸ G.attach_mem ⟨⟨a, hedgeSet ▸ ha⟩, rfl⟩
+
+@[simp]
+lemma copy_eq (G : Graph α β) {V : Set α} {E : Set (Sym2 β)} (hV : V(G) = V) (hE : E(G) = E) :
+    G.copy hV hE = G := by
+  subst hV hE
+  ext <;> simp_all
+
+/-! ### Sets of edges or loops incident to a vertex -/
+
+/-- `G.incidenceSet x` is the set of edges incident to `x` in `G`. -/
 def incidenceSet (G : Graph α β) (x : α) : Set (Sym2 β) :=
   {e | G.Inc e x}
 
@@ -459,27 +560,33 @@ def incidenceSet (G : Graph α β) (x : α) : Set (Sym2 β) :=
 
 theorem incidenceSet_subset_edgeSet (x : α) : G.incidenceSet x ⊆ E(G) := fun _ h ↦ Inc.edge_mem h
 
-/-- Loop edges in `E(G)` at `x`. -/
-def loopSet (G : Graph α β) (x : α) : Set (Sym2 β) :=
-  {e | IsLoopAt G e x}
+/-- `G.loopSet x` is the set of loops at `x` in `G`. -/
+def loopSet (G : Graph α β) (x : α) : Set (Sym2 β) := {e | G.IsLoopAt e x}
 
 @[simp] theorem mem_loopSet (x : α) (e : Sym2 β) : e ∈ G.loopSet x ↔ IsLoopAt G e x := Iff.rfl
 
 theorem loopSet_subset_incidenceSet (x : α) : G.loopSet x ⊆ G.incidenceSet x := fun _ he ↦ ⟨x, he⟩
 
-/-- Shared edges carry the same `isLink` incidence in both graphs. -/
+/-!
+### Compatibility of Graphs
+
+We define two graphs to be `Compatible` if for each edge belonging to their shared edge set,
+the incidence relation (i.e., which pairs of vertices it links) is the same in both graphs.
+-/
+
+/-- Two graphs are compatible if their shared edges have the same ends in both graphs. -/
 def Compatible (G H : Graph α β) : Prop :=
-  ∀ ⦃e : Sym2 β⦄, e ∈ E(G) → e ∈ E(H) → ∀ x y, G.isLink e x y ↔ H.isLink e x y
+  ∀ ⦃e⦄, e ∈ E(G) → e ∈ E(H) → ∀ x y, G.isLink e x y ↔ H.isLink e x y
 
 lemma Compatible.isLink_congr (heG : e ∈ E(G)) (heH : e ∈ E(H)) (h : G.Compatible H) :
     G.isLink e x y ↔ H.isLink e x y := h heG heH x y
 
-lemma Compatible.refl (G : Graph α β) : G.Compatible G := fun _ _ _ _ _ => Iff.rfl
+lemma Compatible.refl (G : Graph α β) : G.Compatible G := fun _ _ _ _ _ => .rfl
 
-@[simp] lemma Compatible.rfl : G.Compatible G := Compatible.refl G
+@[simp] lemma Compatible.rfl : G.Compatible G := .refl G
 
 instance : Std.Refl (Compatible : Graph α β → Graph α β → Prop) where
-  refl _ := Compatible.rfl
+  refl _ := .rfl
 
 @[symm]
 lemma Compatible.symm (h : G.Compatible H) : H.Compatible G :=
@@ -507,5 +614,25 @@ lemma IsNonloopAt.of_compatible (hGH : G.Compatible H) (heH : e ∈ E(H)) (h : G
     H.IsNonloopAt e x := by
   obtain ⟨y, hne, hy⟩ := h
   exact ⟨y, hne, hy.of_compatible hGH heH⟩
+
+/-! ### Graphs with no edges -/
+
+/-- The graph with vertex set `vertexSet` and no edges -/
+@[simps (attr := grind =)]
+def noEdge (vertexSet : Set α) (β : Type*) : Graph α β where
+  vertexSet := vertexSet
+  edgeSet := ∅
+  edgeSet_pairwise_disjoint := by simp
+  edgeSet_not_isDiag := by simp
+  attach := by
+    simp only [mem_empty_iff_false, false_and, exists_false, setOf_false]
+    rintro ⟨i, hi⟩
+    simp at hi
+  attach_mem i hi := by simp at hi
+
+variable {vertexSet : Set α} {edgeSet : Set β}
+
+lemma edgeSet_eq_empty : E(G) = ∅ ↔ G = noEdge V(G) β :=
+  ⟨fun h ↦ Graph.ext (by simp) h (by simp), fun h ↦ by rw [h, noEdge_edgeSet]⟩
 
 end Graph
