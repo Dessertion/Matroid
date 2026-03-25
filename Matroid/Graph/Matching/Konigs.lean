@@ -301,7 +301,7 @@ lemma gah (hM : G.IsMatching M) (hx : E(G ↾ M, x).encard = 0) (hy : E(G ↾ M,
 private
 lemma gah2 (hM : G.IsMatching M) (he : e ∉ M) : (G.addEdge e x y).IsMatching M := by
   rw [isMatching_iff_edgeRestrict_isMatching] at hM
-  refine IsMatching.of_le (G := G ↾ M) ?_ hM
+  refine IsMatching.mono_left (G := G ↾ M) ?_ hM
   rw [← deleteEdge_addEdge]
   transitivity (G ＼ {e})
   · rw [edgeDelete_eq_edgeRestrict]
@@ -537,7 +537,7 @@ theorem Konig'sTheorem [H.Simple] [H.Finite] (hB : H.Bipartite) : τ(H) = ν(H) 
   -/
   obtain ⟨M, hM⟩ := (G - v).exists_isMaxMatching
   have hMG : G.IsMaxMatching M := by
-    refine (hM.of_le vertexDelete_le).isMaxMatching_of_encard_eq ?_
+    refine (hM.mono_left vertexDelete_le).isMaxMatching_of_encard_eq ?_
     rw [hM.encard, ν_eq]
   have no_touch {f} (hf : f ∈ M) : ¬ G.Inc f v := by
     have := hM.subset hf

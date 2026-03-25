@@ -510,7 +510,7 @@ lemma IsMatching.mapToCover_range_eq_of_encard_eq [G.Finite]
     simp only [ncard_image_of_injective _ Subtype.val_injective,
       ncard_range_of_injective (hM.mapToCover_inj hS), Nat.card_coe_set_eq]
   rwa [← subset_iff_eq_of_ncard_le ?_ S_finite]
-  simp only [← S_finite.cast_ncard_eq, ← M_finite.cast_ncard_eq, Nat.cast_inj] at h
+  simp only [← S_finite.cast_ncard_eq, ← M_finite.cast_ncard_eq, ENat.coe_inj] at h
   rw [this, h]
 
 -- TODO: rename
@@ -914,14 +914,6 @@ lemma IsPathGraph.eDegree_last_eq_one (hP : P.IsPathGraph) (hne : E(P).Nonempty)
 -- TODO: MOVE ALL LEAF LEMMAS
 
 @[simp, grind →]
-lemma IsPendant.edge_mem (h : G.IsPendant e x) : e ∈ E(G) :=
-  h.isNonloopAt.edge_mem
-
-@[simp, grind →]
-lemma IsPendant.vertex_mem (h : G.IsPendant e x) : x ∈ V(G) :=
-  h.isNonloopAt.vertex_mem
-
-@[simp, grind →]
 lemma IsPendant.isLeafEdge (h : G.IsPendant e x) : G.IsLeafEdge e :=
   ⟨x, h⟩
 
@@ -1171,7 +1163,7 @@ lemma IsAugmenter.symmDiff_matching_isMatching [P.Loopless] (hM : G.IsMatching M
       hM.anti_right diff_subset
     refine matching.anti_left G'.le ?_
     simp [G']
-    grw [diff_subset, hM.subset]
+    grw [← subset_union_right, hM.subset]
   have := P_matching.union G'_matching disj
   rw [symmDiff_comm, Set.symmDiff_def]
   refine this.mono_left ?_
