@@ -325,7 +325,7 @@ lemma IsPath.pathMatching_isMatching (hP : G.IsPath P) : P.toGraph.IsMatching P.
       rw [cons_isPath_iff] at hP; grind
     have f_not_in : f ∉ w.pathMatching := by
       grind [hP.edge_nodup, pathMatching_subset]
-    refine gah ?_ ?_ ?_ ?_ 
+    refine gah ?_ ?_ ?_ ?_
     · rw [toGraph_cons_addEdge hP'.isWalk.wellFormed]
       refine gah2 IH f_not_in
     · have : u ∉ V((cons v f w).toGraph) := by
@@ -556,8 +556,8 @@ theorem Konig'sTheorem [H.Simple] [H.Finite] (hB : H.Bipartite) : τ(H) = ν(H) 
       grind
     have fin1 : E(G ＼ M, u).Finite :=
       LocallyFinite.finite u
-    have GMu_deg : (M ∩ E(G, u)).encard ≤ ↑(1 : ℕ) := hMG.degree_le_one u
-    rw [inter_comm, encard_le_coe_iff_finite_ncard_le] at GMu_deg
+    have GMu_deg : E(G ↾ M, u).encard ≤ ↑(1 : ℕ) := hMG.incEdges_encard_le_one u
+    rw [encard_le_coe_iff_finite_ncard_le, incEdges_edgeRestrict] at GMu_deg
     rw [degree_eq_ncard_inc, bwah, ncard_union_eq hdisj fin1 GMu_deg.1] at hdegu
     omega
   obtain ⟨x, hux, hxv_ne⟩ := exists_ne_of_one_lt_ncard neighbors v
