@@ -4,7 +4,8 @@ import Matroid.Parallel
 
 namespace Graph
 
-variable {α β : Type*} {G H C P : Graph α β} {S X Y : Set α} {M M' : Set β} {u v x y z : α} {e f : β}
+variable {α β : Type*} {G H C P : Graph α β} {S X Y : Set α} {M M' : Set β} {u v x y z : α}
+         {e f : β}
 
 open Set symmDiff WList
 
@@ -64,27 +65,6 @@ lemma IsMatching.isMaxMatching_of_encard_eq (hM : G.IsMatching M) (h : M.encard 
     rw [h]
     exact hM'.encard_le
 
-lemma IsMatching.subsingleton_inc (h : G.IsMatching M) (v : α) : (M ∩ E(G, v)).Subsingleton := by
-  intro e he f hf
-  by_contra hne
-  exact (h.disjoint he.1 hf.1 hne).le_bot ⟨he.2, hf.2⟩
-
-lemma IsMatching.degree_le_one (h : G.IsMatching M) (v : α) : (M ∩ E(G, v)).encard ≤ 1 := by
-  rw [encard_le_one_iff_subsingleton]
-  exact h.subsingleton_inc v
-
-lemma IsMatching.maxDegree_le_one [G.Loopless] (h : G.IsMatching M) : (G ↾ M).MaxDegreeLE 1 := by
-  have : ∀ v : α, E(G ↾ M, v).encard ≤ ↑1 := by
-    intro v
-    refine (encard_le_encard ?_).trans (h.degree_le_one v)
-    rintro e ⟨w, hw⟩
-    exact ⟨hw.1, w, hw.2⟩
-  rw [maxDegreeLE_iff']
-  intro v hv
-  rw [eDegree_eq_encard_inc]
-  exact this v
-
--- I just realized the next 4ish lemmas are duplicates from `Matching/Def.lean`
 @[simp, grind .]
 lemma IsMatching.incEdges_subsingleton (hM : G.IsMatching M) (x : α) :
     E(G ↾ M, x).Subsingleton := by
@@ -240,6 +220,64 @@ lemma matchingNumber_mono (hle : G ≤ H) : ν(G) ≤ ν(H) := by
   rw [sSup_le_iff]
   rintro _ ⟨M, hM, rfl⟩
   exact hM.mono_left hle |>.encard_le
+
+lemma IsMatching.eDegree_le_two' (hM : G.IsMatching M) (hle : H ≤ G) (x : α) :
+    (H ↾ M).eDegree x ≤ 2 := by
+  grw [eDegree_mono (G := G ↾ M)]
+  · exact hM.eDegree_le_two _
+  exact edgeRestrict_mono_left hle _
+
+lemma IsMatching.maxDegreeLE_two' (hM : G.IsMatching M) (hle : H ≤ G) :
+    (H ↾ M).MaxDegreeLE 2 :=
+  fun x ↦ hM.eDegree_le_two' hle x
+
+lemma IsMatching.eDegree_le_one' [G.Loopless] (hM : G.IsMatching M) (hle : H ≤ G) (x : α) :
+    (H ↾ M).eDegree x ≤ 1 := by
+  grw [eDegree_mono (G := G ↾ M)]
+  · exact hM.eDegree_le_one _
+  exact edgeRestrict_mono_left hle _
+
+lemma IsMatching.eDegree_eq_one' [G.Loopless]
+    (hM : G.IsMatching M) (hle : H ≤ G) (hx : x ∈ V(H, M)) :
+    (H ↾ M).eDegree x = 1 := by
+  rw [← incVertexSet_inter_edgeSet, inter_comm] at hx
+  have hM' := hM.anti_left' hle
+  have _ : H.Loopless := ‹G.Loopless›.mono hle
+  have := hM'.eDegree_eq_one hx
+  rwa [← edgeRestrict_edgeSet_inter]
+
+lemma IsMatching.eDegree_eq_fn' [DecidablePred (· ∈ V(H, M))] [G.Loopless]
+    (hM : G.IsMatching M) (hle : H ≤ G) :
+    (H ↾ M).eDegree = fun x ↦ if x ∈ V(H, M) then 1 else 0 := by
+  classical
+  -- have _ : DecidablePred (· ∈ V(G, M)) := inferInstance
+  have hM' := hM.anti_left' hle
+  have _ : H.Loopless := ‹G.Loopless›.mono hle
+  have := hM'.eDegree_eq_fn
+  rw [edgeRestrict_edgeSet_inter, inter_comm, incVertexSet_inter_edgeSet] at this
+  simp only [this, mem_incVertexSet_iff]
+
+lemma IsMatching.maxDegreeLE_one' [G.Loopless] (hM : G.IsMatching M) (hle : H ≤ G) :
+    (H ↾ M).MaxDegreeLE 1 :=
+  fun x ↦ hM.eDegree_le_one' hle x
+
+lemma IsMatching.incEdges_subsingleton' (hM : G.IsMatching M) (hle : H ≤ G) (x : α) :
+    E(H ↾ M, x).Subsingleton := by
+  refine (hM.incEdges_subsingleton x).anti ?_
+  refine incEdges_mono ?_ _
+  exact edgeRestrict_mono_left hle _
+
+lemma IsMatching.incEdges_encard_le_one' (hM : G.IsMatching M) (hle : H ≤ G) (x : α) :
+    E(H ↾ M, x).encard ≤ 1 := by
+  rw [Set.encard_le_one_iff_subsingleton]
+  exact hM.incEdges_subsingleton' hle x
+
+lemma IsMatching.matched_vertexSet_encard_eq' [G.Loopless] (hM : G.IsMatching M) (hle : H ≤ G) :
+    V(H, M).encard = 2 * E(H ↾ M).encard := by
+  have hM' := hM.anti_left' hle
+  have _ : H.Loopless := ‹G.Loopless›.mono hle
+  have := hM'.matched_vertexSet_encard_eq
+  rwa [← incVertexSet_inter_edgeSet, inter_comm, edgeRestrict_edgeSet]
 
 -- If every vertex has at most 1 incident edge, then it must be a matching.
 lemma isMatching_of_encard_incEdges_le_one
@@ -458,6 +496,11 @@ lemma matchingNumber_le_coverNumber : ν(G) ≤ τ(G) := by
   rw [show C.encard = (univ : Set ↑C).encard by simp]
   refine encard_le_encard (by grind)
 
+lemma matchingNumber_le_edgeSet_encard (G : Graph α β) : ν(G) ≤ E(G).encard := by
+  simp only [matchingNumber, sSup_le_iff]
+  rintro _ ⟨M, hM, rfl⟩
+  exact encard_le_encard hM.subset
+
 lemma exists_isMaxMatching' (G : Graph α β) (hν : ν(G) ≠ ⊤) : ∃ M, G.IsMaxMatching M := by
   have : ν(G) ∈ G.matchingNumberSet := by
     have injOn : InjOn ENat.toNat G.matchingNumberSet := by
@@ -481,14 +524,13 @@ lemma exists_isMaxMatching' (G : Graph α β) (hν : ν(G) ≠ ⊤) : ∃ M, G.I
   obtain ⟨M, hM, hM_eq⟩ := this
   refine ⟨M, hM.isMaxMatching_of_encard_eq hM_eq.symm⟩
 
-lemma exists_isMaxMatching (G : Graph α β) [G.Finite] : ∃ M, G.IsMaxMatching M := by
+lemma exists_isMaxMatching (G : Graph α β) [G.EdgeFinite] : ∃ M, G.IsMaxMatching M := by
   refine G.exists_isMaxMatching' ?_
-  have := G.matchingNumber_le_coverNumber
-  have τ_finite : τ(G) < ⊤ := by
-        have : V(G).encard < ⊤ := encard_lt_top_iff.mpr ‹G.Finite›.vertexSet_finite
-        have := G.coverNumber_le_vertexSet_encard
-        enat_to_nat!
-  enat_to_nat!
+  suffices hlt : ν(G) < ⊤
+  · intro bad; rw [bad] at hlt; exact hlt.ne rfl
+  refine lt_of_le_of_lt G.matchingNumber_le_edgeSet_encard ?_
+  rw [encard_lt_top_iff]
+  exact edgeSet_finite
 
 lemma IsMatching.encard_le_isCover_encard (hM : G.IsMatching M) (hS : G.IsCover S) :
     M.encard ≤ S.encard := by
@@ -726,41 +768,6 @@ lemma IsMatching.covering_edge_unique (hM : G.IsMatching M) (heM : e ∈ M) (hex
   generalize_proofs pf
   exact pf.choose_spec.2 _ heM hex
 
-/-! ### restrict₂ (lemmas needed for Tutte-Berge?) -/
-
-def IsMatching.restrict₂ (hM : G.IsMatching M) (hM' : G.IsMatching M') : Graph α β :=
-  G ↾ (M ∆ M') |>.loopRemove
-
-instance IsMatching.restrict₂.edgeFinite (hM : G.IsMatching M) (hM' : G.IsMatching M')
-    [G.EdgeFinite] : (hM.restrict₂ hM').EdgeFinite := by
-  sorry
-
-lemma IsMatching.symmDiff_maxDegree_le_two (hM : G.IsMatching M) (hM' : G.IsMatching M') :
-    (hM.restrict₂ hM').MaxDegreeLE 2 := by
-  sorry
-
-lemma IsMatching.disjoint_inter_of_isCycle_symmDiff (hM : G.IsMatching M)
-    (hM' : G.IsMatching M') (hC : C.IsCycle) (hCG : C ≤ hM.restrict₂ hM') :
-    Disjoint (E(C) ∩ M) (E(C) ∩ M') := by
-  sorry
-
-lemma IsMatching.inter_encard_eq_of_isCycle_isCompOf_symmDiff (hM : G.IsMatching M)
-    (hM' : G.IsMatching M') (hC : C.IsCycle) (hCG : C.IsCompOf (hM.restrict₂ hM')) :
-    (E(C) ∩ M).encard = (E(C) ∩ M').encard := by
-  sorry
-
--- lemma IsMatching.exists_isPathGraph_isCompOf_symmDiff (hM : G.IsMatching M)
---     (hM' : G.IsMatching M')
---     (hcd : M.encard < M'.encard) [G.EdgeFinite] :
---     ∃ G' : Graph α β, G'.IsCompOf (hM.restrict₂ hM') ∧ G'.IsPathGraph := by
---   contrapose! hcd
---   have hmax := hM.symmDiff_maxDegree_le_two hM'
---   have hcd' : ∀ (G' : Graph α β), G'.IsCompOf (hM.restrict₂ hM') → G'.IsCycle :=
---     fun G' hG' ↦ hG'.isPathGraph_or_isCycle_of_maxDegreeLE hmax |>.resolve_left
---     <| hcd G' hG'
---   clear hcd hmax
---   sorry -- component partition
-
 -- TODO: move
 -- For parity with `Nat.mul_left_cancel`
 lemma _root_.ENat.mul_left_cancel {n m k : ℕ∞} (hn : 0 < n) (h_top : n ≠ ⊤) (h : n * m = n * k) :
@@ -836,6 +843,15 @@ lemma IsPathGraph.isLeaf_last (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
     P.IsLeaf hP.last :=
   hP.isLeaf_iff hne |>.mpr (Or.inr rfl)
 
+@[simp]
+lemma IsPathGraph.first_ne_last (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
+    hP.first ≠ hP.last := by
+  have ⟨hp, heq⟩ := hP.choose_spec
+  set p := hP.choose
+  change p.first ≠ p.last
+  rw [heq, ← nonempty_iff_toGraph_edgeSet_nonempty] at hne
+  exact hne.first_ne_last_of_nodup hp.nodup
+
 noncomputable def IsPathGraph.firstEdge (hP : P.IsPathGraph) (hne : E(P).Nonempty) : β := by
   refine WList.Nonempty.firstEdge hP.choose ?_
   rw [hP.choose_spec.2, ← nonempty_iff_toGraph_edgeSet_nonempty] at hne
@@ -881,17 +897,22 @@ lemma IsPathGraph.inc_lastEdge_last (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
   rw [show P = p.toGraph by exact hP.choose_spec.2, hP.choose_spec.1.isWalk.wellFormed.toGraph_inc]
   exact hne.inc_lastEdge_last
 
-lemma IsPathGraph.firstEdge_isLeafEdge (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
-    P.IsLeafEdge <| hP.firstEdge hne := by
-  sorry
+-- lemma IsPathGraph.firstEdge_isLeafEdge (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
+--     P.IsLeafEdge <| hP.firstEdge hne := by
+--   sorry
 
-lemma IsPathGraph.setOf_isLeafEdge_eq (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
-    {e | P.IsLeafEdge e} = {hP.firstEdge hne, hP.lastEdge hne} := by
-  sorry
+-- lemma IsPathGraph.setOf_isLeafEdge_eq (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
+--     {e | P.IsLeafEdge e} = {hP.firstEdge hne, hP.lastEdge hne} := by
+--   sorry
 
 lemma IsPathGraph.eDegree_first_le_one (hP : P.IsPathGraph) :
     P.eDegree hP.first ≤ 1 := by
-  sorry
+  -- either isolated vx or leaf
+  obtain (h|h) := em E(P).Nonempty
+  · rw [hP.isLeaf_first h |>.eDegree]
+  rw [not_nonempty_iff_eq_empty, ← encard_eq_zero] at h
+  grw [eDegree_le_two_mul_card_edgeSet, h]
+  enat_to_nat; omega
 
 @[simp, grind →]
 lemma IsPathGraph.eDegree_first_eq_one (hP : P.IsPathGraph) (hne : E(P).Nonempty) :
@@ -1005,16 +1026,42 @@ lemma IsPathGraph.eq_first_or_last_of_eDegree_eq_one (hP : P.IsPathGraph) (hdeg 
   rw [eDegree_eq_one_iff] at hdeg
   exact hdeg.mem
 
+-- TODO: MOVE
+lemma eDegree_ne_zero_iff_exists_inc (G : Graph α β) : G.eDegree x ≠ 0 ↔ ∃ e, G.Inc e x := by
+  grind only [eDegree_eq_zero_iff_inc]
+
+-- TODO: MOVE
+lemma maxDegreeLE_zero_iff_edgeSet_empty (G : Graph α β) : G.MaxDegreeLE 0 ↔ E(G) = ∅ := by
+  rw [edgeSet_eq_empty_iff, maxDegreeLE_zero_iff]
+
 lemma IsPathGraph.degreePos (hP : P.IsPathGraph) (hne : E(P).Nonempty) : P.DegreePos := by
-  sorry
+  have ⟨hp, heq⟩ := hP.choose_spec
+  set p := hP.choose
+  simp only [degreePos_iff', eDegree_ne_zero_iff_exists_inc]
+  intro x hxP
+  simp [heq] at hxP
+  rw [heq, ← nonempty_iff_toGraph_edgeSet_nonempty] at hne
+  rw [hne.mem_iff_exists_isLink] at hxP
+  obtain ⟨y, e, hexy⟩ := hxP
+  rw [← hp.isWalk.wellFormed.toGraph_isLink, ← heq] at hexy
+  refine ⟨e, hexy.inc_left⟩
 
 lemma IsPathGraph.eDegree_eq_two (hP : P.IsPathGraph) (hxP : x ∈ V(P)) (hne_first : x ≠ hP.first)
     (hne_last : x ≠ hP.last) : P.eDegree x = 2 := by
-  sorry
+  have ⟨hp, heq⟩ := hP.choose_spec
+  set p := hP.choose
+  change x ≠ p.first at hne_first
+  change x ≠ p.last at hne_last
+  rw [heq]
+  simp [heq] at hxP
+  exact hp.eDegree_toGraph_eq_two hxP hne_first hne_last
 
 lemma IsPathGraph.maxDegreeLE_two (hP : P.IsPathGraph) : P.MaxDegreeLE 2 := by
   obtain (hempty|hne) := em' (E(P).Nonempty)
-  · sorry
+  · rw [not_nonempty_iff_eq_empty, ← maxDegreeLE_zero_iff_edgeSet_empty] at hempty
+    intro x
+    grw [hempty x]
+    enat_to_nat; omega
   rw [maxDegreeLE_iff']
   intro x hxP
   obtain (h|h) := em (x = hP.first ∨ x = hP.last)
@@ -1027,7 +1074,11 @@ lemma IsPathGraph.maxDegreeLE_two (hP : P.IsPathGraph) : P.MaxDegreeLE 2 := by
 lemma IsPathGraph.eDegree_eq_one_or_two (hP : P.IsPathGraph) (hne : E(P).Nonempty)
     (hxP : x ∈ V(P)) :
     P.eDegree x = 1 ∨ P.eDegree x = 2 := by
-  sorry
+  have deg_le := hP.maxDegreeLE_two x
+  have deg_ge := hP.degreePos hne
+  rw [degreePos_iff'] at deg_ge
+  specialize deg_ge hxP
+  enat_to_nat!; omega
 
 lemma IsPathGraph.eq_first_or_last_or_inner (hP : P.IsPathGraph) (hxP : x ∈ V(P)) :
     x = hP.first ∨ x = hP.last ∨ P.eDegree x = 2 := by
@@ -1050,8 +1101,8 @@ structure IsAugmenter (G : Graph α β) (M : Set β) (P : Graph α β) : Prop wh
   no_match_leaf : ∀ ⦃x⦄, P.eDegree x = 1 → x ∉ V(G, M)
 
 attribute [grind →, grind <=]
-    IsAugmenter.le IsAugmenter.eDegree_eq_one_or_two IsAugmenter.exists_isLeaf IsAugmenter.match_nonleaf
-    IsAugmenter.no_match_leaf
+    IsAugmenter.le IsAugmenter.eDegree_eq_one_or_two IsAugmenter.exists_isLeaf
+    IsAugmenter.match_nonleaf IsAugmenter.no_match_leaf
 
 lemma IsAugmenter.matched_vertexSet_eq (hP : G.IsAugmenter M P) :
     V(P, M) = {x ∈ V(P) | P.eDegree x = 2} := by
@@ -1315,86 +1366,150 @@ lemma IsCycle.regular (h : G.IsCycle) : G.Regular 2 := by
   rw [← heq]
   exact hC.toGraph_regular
 
+-- TODO (NB?): `grind` seems to cope better when `e` is passed in as an explicit parameter,
+-- rather than as an implicit.
+-- (As in, even if `e ∈ E(H)` is in context, if the conclusion is dealing with `e ∈ ...`,
+-- then it's better equipped to figure things out, it seems...)
+private
+lemma symmDiff_edge_mem_or_mem
+    [G.Loopless]
+    (hle : H ≤ Subgraph.ofEdge G (M ∆ M')) (e : β) (he : e ∈ E(H)) :
+    e ∈ M \ M' ∨ e ∈ M' \ M := by
+  have := edgeSet_mono hle
+  simp at this
+  apply this.2 at he
+  rw [Set.symmDiff_def] at he
+  exact he
+
 private
 lemma symmDiff_matching_edge_at
     [G.Loopless]
-    (hM : G.IsMatching M) (hM' : G.IsMatching M')
+    (hM : G.IsMatching M)
     (hle : H ≤ Subgraph.ofEdge G (M ∆ M'))
-    (hx : x ∈ V(H)) (hex : e ∈ E(H, x)) (hfx : f ∈ E(H, x)) (hne : e ≠ f) (heM : e ∈ M) :
+    (hex : e ∈ E(H, x)) (hfx : f ∈ E(H, x)) (hne : e ≠ f) (heM : e ∈ M) :
     f ∈ M' := by
-  have h_edge : ∀ e ∈ E(H), (e ∈ M \ M') ∨ (e ∈ M' \ M) := by
-    intro e he
-    have := edgeSet_mono hle
-    simp at this
-    apply this.2 at he
-    rw [Set.symmDiff_def] at he
-    exact he
   by_contra! hfM
   replace hfM : f ∈ M := by
-    have := h_edge f (H.incEdges_subset x hfx)
+    have := symmDiff_edge_mem_or_mem hle f (H.incEdges_subset x hfx)
     grind only [= mem_diff]
   -- here is a case where matching is baring its teeth...
-  sorry
+  replace hex : e ∈ E(H ↾ M, x) := by
+    simp only [incEdges_edgeRestrict]
+    refine ⟨?_, ?_⟩ <;> assumption
+  replace hfx : f ∈ E(H ↾ M, x) := by
+    simp only [incEdges_edgeRestrict]
+    refine ⟨?_, ?_⟩ <;> assumption
+  have H_le_G : H ≤ G := hle.trans (Subgraph.le _)
+  have := hM.incEdges_subsingleton' H_le_G x hex hfx
+  contradiction
 
+private
+lemma symmDiff_matching_internal_vx
+    [G.Loopless]
+    (hM : G.IsMatching M) (hM' : G.IsMatching M')
+    (hle : H ≤ Subgraph.ofEdge G (M ∆ M'))
+    (hdeg : H.eDegree x = 2) :
+    x ∈ V(H, M) ∧ x ∈ V(H, M') := by
+  have H_le_G : H ≤ G := hle.trans <| Subgraph.le _
+  have _ : H.Loopless := ‹G.Loopless›.mono H_le_G
+  have edge_mem_or_mem := symmDiff_edge_mem_or_mem hle
+  rw [eDegree_eq_encard_inc, encard_eq_two] at hdeg
+  obtain ⟨e, f, hne, heq⟩ := hdeg
+  wlog heM : e ∈ M generalizing e f with aux
+  · refine aux f e hne.symm (by rw [heq, pair_comm]) ?_
+    have he : e ∈ E(H, x) := by
+      grind only [= mem_insert_iff]
+    have hf : f ∈ E(H, x) := by
+      grind only [= mem_insert_iff, = mem_singleton_iff]
+    have heM' : e ∈ M' := by
+      have := H.incEdges_subset x he
+      grind only [= mem_diff]
+    rw [symmDiff_comm] at hle
+    exact symmDiff_matching_edge_at hM' hle he hf hne heM'
+  have hfM' : f ∉ M := by
+    intro hfM
+    have he : e ∈ E(H ↾ M, x) := by
+      grind only [= incEdges_edgeRestrict, = mem_inter_iff, = mem_insert_iff]
+    have hf : f ∈ E(H ↾ M, x) := by
+      grind only [= incEdges_edgeRestrict, = mem_inter_iff, = mem_insert_iff, = mem_singleton_iff]
+    have := hM.incEdges_subsingleton' H_le_G x he hf
+    contradiction
+  replace hfM' : f ∈ M' := by grind
+  refine ⟨?_, ?_⟩
+    <;> [refine ⟨e, ?_⟩ ; refine ⟨f, ?_⟩]
+  all_goals
+    refine ⟨‹_›, ?_⟩
+    change _ ∈ E(H, x)
+    rw [heq]
+    grind
 
+private
+lemma symmDiff_leaf_vx
+    [G.Loopless]
+    (hle : H ≤ Subgraph.ofEdge G (M ∆ M'))
+    (hdeg : H.eDegree x = 1) :
+    x ∈ V(H, M) \ V(H, M') ∨ x ∈ V(H, M') \ V(H, M) := by
+  -- technically, this lemma doesn't need loopless since the degree condition already ensures that
+  -- the edge at x is a nonloop. but it probably just makes life easier.
+  have H_le_G : H ≤ G := hle.trans <| Subgraph.le _
+  have _ : H.Loopless := ‹G.Loopless›.mono H_le_G
+  rw [eDegree_eq_one_iff] at hdeg
+  obtain ⟨e, he⟩ := hdeg
+  wlog heM : e ∈ M generalizing M M' with aux
+  · rw [symmDiff_comm] at hle
+    have edge_mem_or_mem := symmDiff_edge_mem_or_mem hle
+    specialize aux hle
+    -- TODO: here, if `IsPendant.edge_mem` is hinted with `→`, then `grind` does do the right thing;
+    -- however, it is otherwise too stupid to figure out that it should be using
+    -- `he : H.IsPendant e x` otherwise, and you need to instead put
+    -- `grind only [IsPendant.edge_mem he, = mem_diff]`.
+    grind only [→ IsPendant.edge_mem, = mem_diff]
+  left
+  refine ⟨⟨e, heM, he.inc⟩, ?_⟩
+  rintro ⟨f, hf⟩
+  have := he.edge_unique hf.2
+  have := symmDiff_edge_mem_or_mem hle
+  grind only [→ Inc.edge_mem, = mem_diff]
 
--- TODO: what is the easiest way of proving this?
 private
 lemma symmDiff_matching_cycle_edge_encard
     [G.Loopless]
     (hM : G.IsMatching M) (hM' : G.IsMatching M')
-    (hHP : H.IsCompOf (Subgraph.ofEdge G (M ∆ M')))
+    (hle : H ≤ Subgraph.ofEdge G (M ∆ M'))
     (h_cycle : H.IsCycle) :
     (E(H) ∩ M).encard = (E(H) ∩ M').encard := by
 
   -- any edge in H must be in exactly one of M or M'
-  have h_edge : ∀ e ∈ E(H), (e ∈ M \ M') ∨ (e ∈ M' \ M) := by
-    intro e he
-    have := edgeSet_mono hHP.le
-    simp at this
-    apply this.2 at he
-    rw [Set.symmDiff_def] at he
-    exact he
+  have h_edge := symmDiff_edge_mem_or_mem hle
+
+  have H_le_G : H ≤ G := hle.trans <| Subgraph.le _
 
   have _ : H.Loopless :=
-    ‹G.Loopless›.mono (hHP.le.trans <| Subgraph.le _)
+    ‹G.Loopless›.mono H_le_G
 
   have h_vx : ∀ x ∈ V(H), x ∈ V(H, M) ∧ x ∈ V(H, M') := by
     intro x hx
     -- H is 2-regular, so there are two edges
-    have hx_edges := h_cycle.regular hx
+    have hdeg := h_cycle.regular hx
     -- TODO: can you avoid needing `change` here?
-    change H.eDegree x = 2 at hx_edges
-    rw [eDegree_eq_encard_inc, encard_eq_two] at hx_edges
-    obtain ⟨e, f, hne, heq⟩ := hx_edges
-    wlog heM : e ∉ M generalizing e f with aux
-    · refine aux f e hne.symm (by rw [heq, pair_comm]) ?_
-      simp at heM
-      intro hfM
-      have h_encard : E(H ↾ M, x).encard = 2 := by
-        sorry
-      have h_encard₂ : E(G ↾ M, x).encard = 1 := by
-        rw [← eDegree_eq_encard_inc, hM.eDegree_eq_one]
-        sorry
-      have h_sub : E(H ↾ M, x) ⊆ E(G ↾ M, x) := by
-        refine incEdges_mono ?_ _
-        rw [le_edgeRestrict_iff]
-        refine ⟨edgeRestrict_le.trans <| hHP.le.trans <| Subgraph.le _, ?_⟩
-        simp
-      apply encard_le_encard at h_sub
-      enat_to_nat! <;> omega
-    sorry
-  -- direct soln might be easiest
-  -- for all x ∈ H, (H ↾ M).eDegree x = (H ↾ M').eDegree x = 1
-  --
+    change H.eDegree x = 2 at hdeg
+    exact symmDiff_matching_internal_vx hM hM' hle hdeg
 
-  -- suppose not. then wlog suppose |E(H) ∩ M| < |E(H) ∩ M'|.
-  -- now, let e ∈ E(H) ∩ (M' \ M)
-  --
-  sorry
+  have vertexSet_eq₁ : V(H, M) = V(H) := by
+    refine eq_of_subset_of_subset (incVertexSet_subset _ _) ?_
+    exact fun x hx ↦ h_vx x hx |>.1
+  have vertexSet_eq₂ : V(H, M') = V(H) := by
+    refine eq_of_subset_of_subset (incVertexSet_subset _ _) ?_
+    exact fun x hx ↦ h_vx x hx |>.2
+  iterate rw [← edgeRestrict_edgeSet]
+  have heq : 2 * E(H ↾ M).encard = 2 * E(H ↾ M').encard := by
+    grind only [IsMatching.matched_vertexSet_encard_eq']
+  -- TODO: grind dies here
+  exact ENat.mul_left_cancel (n := 2) (by simp) (by simp) heq
+
 
 lemma exists_isAugmenter_of_matching_encard_lt
-    [G.Loopless]
+    [G.Loopless] [G.EdgeFinite]
     (hM : G.IsMatching M) (hM' : G.IsMatching M') (hlt : M.encard < M'.encard) :
     ∃ P, G.IsAugmenter M P := by
   let P := Subgraph.ofEdge G (M ∆ M')
@@ -1418,23 +1533,72 @@ lemma exists_isAugmenter_of_matching_encard_lt
       rw [← incEdges_edgeRestrict]
       refine IsMatching.incEdges_encard_le_one ?_ _
       exact IsMatching.anti_right ‹_› diff_subset
-  have P_leaf : ∃ x, P.val.IsLeaf x := by
-    -- cardinality argument?
-    -- oh god this is going to be so painful if |M'| = ⊤
-    -- suppose there are no leaves.
-    -- then the graph must be 2-regular, and all components must be cycles
-    -- per component, if the component is a cycle, then the number of edges in M
-    -- must equal the number of edges in M'
-    -- so since every component is a cycle, we must have |M| = |M'|, a contradiction.
-    sorry
+  have M_finite : M.Finite := by
+    rw [← encard_lt_top_iff]
+    exact lt_of_lt_of_le hlt le_top
 
   -- TODO:
   -- not just directly P, we want just the one augmenting path that must exist?
   obtain ⟨P', hP'P, hP'_encard⟩ :
-     ∃ P' : Graph α β, P'.IsCompOf P ∧ (E(P') ∩ M).encard < (E(P') ∩ M').encard := by
-    sorry
+      ∃ P' : Graph α β, P'.IsCompOf P ∧ (E(P') ∩ M).encard < (E(P') ∩ M').encard := by
+    -- Suppose not.
+    -- Then every component P' of P must satisfy |E(P') ∩ M'| ≤ |E(P') ∩ M|.
+    -- Since P is equal to the union of its components,
+    -- therefore |E(P) ∩ M'| ≤ |E(P) ∩ M| as well.
+    -- But note, P is the smallest subgraph whose edges contrain M ∆ M',
+    -- so E(P) = M ∆ M', so (E(P) ∩ M') = (M ∆ M') ∩ M' = M' \ M,
+    -- and similarly (E(P) ∩ M) = M \ M'.
+    -- Thus, |M' \ M| ≤ |M \ M'|, contradicting our outer assumption that |M| < |M'|.
+    by_contra! hcon
+    have P_edgeSet : E(P.val) = ⋃ i ∈ P.val.Components, E(i) := by
+      change ∀ P' ∈ P.val.Components, (E(P') ∩ M').encard ≤ (E(P') ∩ M).encard at hcon
+      conv_lhs => rw [P.val.eq_sUnion_components, sUnion_edgeSet]
+    have PM'_edges : E(P.val) ∩ M' = ⋃ i : P.val.Components, E(i.val) ∩ M' := by
+      simp only [P_edgeSet, iUnion_inter, iUnion_coe_set, mem_components_iff_isCompOf]
+    have PM_edges : E(P.val) ∩ M = ⋃ i : P.val.Components, E(i.val) ∩ M := by
+      simp only [P_edgeSet, iUnion_inter, iUnion_coe_set, mem_components_iff_isCompOf]
+    have h_encard_le_encard : (E(P.val) ∩ M').encard ≤ (E(P.val) ∩ M).encard := by
+      rw [PM'_edges, PM_edges]
+      iterate rw [← ENat.tsum_encard_eq_encard_iUnion]
+      · refine ENat.tsum_le_tsum ?_
+        intro ⟨P', hP'⟩
+        simp
+        exact hcon P' hP'
+      all_goals
+        have hle : ∀ (F : Set β),
+           (fun x : P.val.Components ↦ E(x.val) ∩ F) ≤ (fun x : P.val.Components ↦ E(x.val)) := by
+          intro F C
+          simp
+        refine pairwise_disjoint_mono ?_ (hle _)
+        intro P' P'' hne
+        have := P.val.components_pairwise_stronglyDisjoint P'.2 P''.2 (by grind only) |>.edge
+        grind only
+    replace h_encard_le_encard : (M' \ M).encard ≤ (M \ M').encard := by
+      simp [P] at h_encard_le_encard
+      have hsub : M ∆ M' ⊆ E(G) := by
+        grw [symmDiff_subset_union]
+        grind only [IsMatching.anti_left, = subset_def, IsMatching.subset, = mem_union]
+      rw [inter_eq_right.mpr hsub, Set.symmDiff_def] at h_encard_le_encard
+      simp [union_inter_distrib_right] at h_encard_le_encard
+      rw [inter_eq_left.mpr (by grind)] at h_encard_le_encard
+      rw [inter_eq_left.mpr (by grind)] at h_encard_le_encard
+      assumption
+    rw [← encard_le_encard_iff_encard_diff_le_encard_diff] at h_encard_le_encard
+    · rw [← not_le] at hlt
+      exact hlt h_encard_le_encard
+    exact M_finite.subset (by grind)
+
+  have _ : P.val.EdgeFinite := edgeFinite_of_le P.2
   have hP'_path : P'.IsPathGraph := by
-    sorry
+    -- Since P has MaxDegreeLE 2, therefore every component of P is either a cycle or a path.
+    -- Since every cycle component of P (say P') has an equal number of edges in M as it does in M',
+    -- it can't satisfy the condition that |E(P') ∩ M| < |E(P') ∩ M'|.
+    -- Thus, it must be a path component.
+    obtain (h|h) := hP'P.isPathGraph_or_isCycle_of_maxDegreeLE P_maxDegreeLE
+      <;> [assumption ; exfalso]
+    have := symmDiff_matching_cycle_edge_encard hM hM' hP'P.le h
+    exact hP'_encard.ne ‹_›
+  have _ : P'.Finite := hP'_path.finite
 
   have P'_deg : ∀ x ∈ V(P'), P'.eDegree x = 1 ∨ P'.eDegree x = 2 := by
     intro x hx
@@ -1447,9 +1611,12 @@ lemma exists_isAugmenter_of_matching_encard_lt
 
   refine ⟨P', ?_⟩
   constructor
-  · exact hP'P.le.trans P.2
-  · exact P'_deg
-  · -- P' is a path, so we must have a leaf?
+  case le =>
+    exact hP'P.le.trans P.2
+  case eDegree_eq_one_or_two =>
+    exact P'_deg
+  case exists_isLeaf =>
+    -- P' is a path, so we must have a leaf?
     refine ⟨hP'_path.first, hP'_path.isLeaf_first ?_⟩
     rw [← encard_ne_zero]
     -- TODO: this is as annoying case where i wish we could just have a tactic that clears this
@@ -1460,31 +1627,127 @@ lemma exists_isAugmenter_of_matching_encard_lt
       encard_le_encard (inter_subset_left)
     enat_to_nat! <;> omega
 
-  · intro x hx
-    -- one of the two edges must be from M
-    rw [eDegree_eq_encard_inc, encard_eq_two] at hx
-    obtain ⟨e, f, hne, heq⟩ := hx
-    wlog heM : e ∈ M generalizing e f with aux
-    · specialize aux f e hne.symm (by rw [heq, pair_comm])
-      have heM' : e ∈ M' := by
-        sorry
-      have hfM : f ∈ M := by
-        sorry
-      exact aux hfM
-    refine ⟨e, heM, ?_⟩
-    change e ∈ E(P', x)
-    simp [heq]
-  -- there is at least one augmenting path...
-  -- handshake?
-  -- 2|E(P')| = ∑ P'.eDegree x
-  -- 2|E(P' ↾ M)| = ∑ (P' ↾ M).eDegree x = ∑ |E(P', x) ∩ M|
-  -- 2|E(P' ↾ M')| = ∑ (P' ↾ M').eDegree x = ∑ |E(P', x) ∩ M'|
-  -- 2|E(P')| = 2|E(P' ↾ M)| + 2|E(P' ↾ M')|
+  case match_nonleaf =>
+    intro x hx
+    exact symmDiff_matching_internal_vx hM hM' hP'P.le hx |>.1
 
-  sorry
+  case no_match_leaf =>
 
+  -- the internal vertices of P' are exactly those matched by both M and M'
+  have P'_internal : {x | P'.eDegree x = 2} = V(P', M) ∩ V(P', M') := by
+    ext x
+    simp only [mem_setOf_eq, mem_inter_iff]
+    refine ⟨?_, ?_⟩
+    · exact symmDiff_matching_internal_vx hM hM' hP'P.le
+    rintro ⟨⟨e, he⟩, ⟨f, hf⟩⟩
+    refine le_antisymm (P_maxDegreeLE.mono hP'P.le _) ?_
+    have hne : e ≠ f := by
+      have := symmDiff_edge_mem_or_mem hP'P.le
+      grind only [→ Inc.edge_mem, = mem_diff]
+    have hxP' : x ∈ V(P') := by grind only [→ Inc.vertex_mem]
+    rw [eDegree_eq_encard_inc]
+    suffices sub : {e, f} ⊆ E(P', x)
+    · apply encard_le_encard at sub
+      rw [encard_pair hne] at sub
+      assumption
+    rintro _ (rfl|rfl)
+      <;> [exact he.2 ; exact hf.2]
+  -- the leaf vertices of P' are exactly those matched by one of M or M'
+  have P'_leaf : {x | P'.eDegree x = 1} = V(P', M) \ V(P', M') ∪ V(P', M') \ V(P', M) := by
+    ext x
+    simp only [mem_setOf_eq, mem_union]
+    refine ⟨?_, ?_⟩
+    · exact symmDiff_leaf_vx hP'P.le
+    intro hx
+    have hxP' : x ∈ V(P') := by grind only [!incVertexSet_subset, = mem_diff, = subset_def]
+    by_contra! hdeg
+    replace hdeg : P'.eDegree x = 2 := by grind only
+    clear P'_deg
+    have := symmDiff_matching_internal_vx hM hM' hP'P.le hdeg
+    grind only [= mem_diff]
 
+  have bruh : V(P', M).encard < V(P', M').encard := by
+    rwa [hM.matched_vertexSet_encard_eq' (hP'P.le.trans P.2),
+       hM'.matched_vertexSet_encard_eq' (hP'P.le.trans P.2),
+       ENat.mul_lt_mul_left_iff (by simp) (by simp),
+       edgeRestrict_edgeSet, edgeRestrict_edgeSet]
+  rw [encard_lt_encard_iff_encard_diff_lt_encard_diff] at bruh
+  swap
+  · refine Finite.subset ?_ (inter_subset_left)
+    refine (incVertexSet_finite P' _)
+  -- there are exactly 2 leaves. so...
+  replace P'_leaf : {x | P'.eDegree x = 1} = V(P', M') \ V(P', M) := by
+    suffices emp : V(P', M) \ V(P', M') = ∅
+    · simp only [emp, empty_union] at P'_leaf
+      assumption
+    rw [← encard_eq_zero]
+    suffices leaf_encard : {x | P'.eDegree x = 1}.encard = 2
+    · apply congr_arg Set.encard at P'_leaf
+      rw [leaf_encard, encard_union_eq (disjoint_sdiff_sdiff)]
+        at P'_leaf
+      by_contra hcon
+      rw [← ne_eq, ← ENat.one_le_iff_ne_zero] at hcon
+      have h := lt_of_le_of_lt hcon bruh
+      rw [← ENat.add_one_le_iff (by simp)] at h
+      have winner := add_le_add hcon h
+      rw [← P'_leaf] at winner
+      enat_to_nat; omega
+    have nontrivial : E(P').Nonempty := by
+      rw [← encard_ne_zero]
+      by_contra! hcon
+      have h : (E(P') ∩ M').encard ≤ E(P').encard := encard_le_encard (inter_subset_left)
+      clear P'_deg
+      enat_to_nat! <;> omega
+    simp only [eDegree_eq_one_iff, hP'_path.setOf_isLeaf_eq nontrivial]
+    exact encard_pair <| hP'_path.first_ne_last nontrivial
 
+  clear P'_deg
+  intro x hdeg ⟨e, heM, hexG⟩
+  have hx := hdeg
+  rw [show P'.eDegree x = 1 ↔ x ∈ {x | P'.eDegree x = 1} by rfl, P'_leaf] at hx
+  -- casework bash.
+  rw [eDegree_eq_one_iff] at hdeg
+  obtain ⟨f, hf⟩ := hdeg
+  have hfM' : f ∈ M' := by
+    obtain ⟨f', hf'⟩ := hx.1
+    grind only
+  have hfP' : f ∈ E(P') := by grind only [→ IsPendant.edge_mem]
+
+  obtain (heM'|he_notMem_M') := em (e ∈ M')
+  · -- if e ∈ M', then e cannot be in M ∆ M', so e cannot be f.
+    -- but this violates the disjointness condition for the matching M'.
+    have hfxGM' : f ∈ E(G ↾ M', x) := by
+      simp only [incEdges_edgeRestrict, mem_inter_iff, mem_incEdges_iff]
+      refine ⟨hf.inc.of_le hP'P.le |>.of_le P.2, hfM'⟩
+    have hexGM' : e ∈ E(G ↾ M', x) := by
+      simp only [incEdges_edgeRestrict, mem_inter_iff, mem_incEdges_iff]
+      refine ⟨?_, ?_⟩ <;> assumption
+    have := hM'.incEdges_subsingleton x hexGM' hfxGM'
+    have := symmDiff_edge_mem_or_mem hP'P.le _ hfP'
+    grind only [= mem_diff]
+  -- now suppose e ∉ M'. then e ∈ M ∆ M', so e ∈ E(P).
+  -- and since P' is a component of P, therefore e ∈ E(P') as well.
+  -- and since we have `P'.IsPendant f x`, we must have e = f, again a contradiction.
+  have hexP : P.val.Inc e x := by
+    simp [P]
+    grind only [= mem_symmDiff, → Inc.edge_mem]
+  have hexP' : P'.Inc e x := by
+    refine hexP.of_isClosedSubgraph_of_mem hP'P.isClosedSubgraph ?_
+    grind only [!incVertexSet_subset, = mem_diff, = subset_def]
+  have heq := hf.edge_unique hexP'
+  grind only
+
+lemma berge [G.Loopless] [G.EdgeFinite] (hM : G.IsMatching M) :
+    ¬ G.IsMaxMatching M ↔ ∃ P, G.IsAugmenter M P := by
+  refine ⟨?_, ?_⟩
+  · intro h_notMax
+    simp [isMaxMatching_iff] at h_notMax
+    specialize h_notMax hM
+    obtain ⟨M', hM', hlt⟩ := h_notMax
+    exact exists_isAugmenter_of_matching_encard_lt hM hM' hlt
+  intro ⟨P, hP⟩ hM_max
+  have _ : P.Loopless := ‹G.Loopless›.mono hP.le
+  exact hM_max.not_isAugmenter _ hP
 
 /-! ### Structure of graph from maximal matching -/
 
